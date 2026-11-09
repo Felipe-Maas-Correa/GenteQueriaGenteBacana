@@ -1,0 +1,117 @@
+"use client"
+
+import Link from "next/link"
+import { useState } from "react"
+import { MenuIcon } from "lucide-react"
+import { motion, useMotionValueEvent, useScroll } from "motion/react"
+
+import { Logo } from "@/components/shared/logo"
+import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { editorias } from "@/lib/site"
+import { cn } from "@/lib/utils"
+
+const navLinkClass =
+  "relative rounded-sm py-1 text-sm font-medium text-foreground/75 outline-none transition-colors duration-(--duration-fast) hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:origin-left after:scale-x-0 after:bg-brand after:transition-transform after:duration-(--duration-base) after:ease-emphasized hover:after:scale-x-100"
+
+/** Cabeçalho do portal: fica fixo e ganha fundo ao rolar a página. */
+export function SiteHeader() {
+  const { scrollY } = useScroll()
+  const [scrolled, setScrolled] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useMotionValueEvent(scrollY, "change", (value) => {
+    setScrolled(value > 24)
+  })
+
+  return (
+    <motion.header
+      initial={{ y: -16, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6 }}
+      className={cn(
+        "sticky top-0 z-40 border-b transition-[background-color,border-color,backdrop-filter] duration-(--duration-base)",
+        scrolled
+          ? "border-border bg-background/85 backdrop-blur-md"
+          : "border-transparent bg-background"
+      )}
+    >
+      <div className="page-container flex h-(--topbar-h) items-center justify-between gap-6">
+        <Link
+          href="/"
+          aria-label="Gente Querida, Gente Bacana — página inicial"
+          className="rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+        >
+          <Logo size="sm" />
+        </Link>
+
+        <nav aria-label="Editorias" className="hidden items-center gap-7 md:flex">
+          {editorias.map((editoria) => (
+            <Link
+              key={editoria.slug}
+              href={`/noticias#${editoria.slug}`}
+              className={navLinkClass}
+            >
+              {editoria.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
+            <Link href="/noticias">Todas as notícias</Link>
+          </Button>
+
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                aria-label="Abrir menu"
+              >
+                <MenuIcon />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-80 max-w-[85vw] p-6">
+              <SheetTitle className="type-overline text-muted-foreground">
+                Editorias
+              </SheetTitle>
+              <SheetDescription className="sr-only">
+                Navegação pelas editorias do portal.
+              </SheetDescription>
+              <nav aria-label="Editorias" className="mt-2 grid">
+                {[{ slug: "", label: "Todas as notícias" }, ...editorias].map(
+                  (editoria, index) => (
+                    <motion.div
+                      key={editoria.slug}
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.05 * index + 0.1 }}
+                    >
+                      <Link
+                        href={
+                          editoria.slug ? `/noticias#${editoria.slug}` : "/noticias"
+                        }
+                        onClick={() => setMenuOpen(false)}
+                        className="type-h2 block rounded-sm border-b py-3 outline-none transition-colors hover:text-brand focus-visible:ring-3 focus-visible:ring-ring/40"
+                      >
+                        {editoria.label}
+                      </Link>
+                    </motion.div>
+                  )
+                )}
+              </nav>
+            </SheetContent>
+          </Sheet>
+        </div>
+      </div>
+    </motion.header>
+  )
+}
