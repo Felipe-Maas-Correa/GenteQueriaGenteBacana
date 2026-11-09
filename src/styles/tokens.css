@@ -1,0 +1,149 @@
+/*
+ * Tokens de design — Gente Querida, Gente Bacana
+ *
+ * Fonte única de verdade para cores, tipografia, raios, sombras, transições
+ * e dimensões de componentes. Qualquer ajuste visual global deve começar aqui.
+ * O Guia de Estilo (/admin/guia-de-estilo) lê estes valores em tempo real.
+ */
+
+:root {
+  /* ── Paleta base ─────────────────────────────────────────────── */
+  --papel: oklch(0.984 0.007 85);
+  --papel-elevado: oklch(0.997 0.003 85);
+  --areia: oklch(0.94 0.014 82);
+  --areia-clara: oklch(0.958 0.01 84);
+  --tinta: oklch(0.225 0.018 55);
+  --tinta-suave: oklch(0.47 0.02 60);
+  --urucum: oklch(0.57 0.175 40);
+  --urucum-suave: oklch(0.95 0.03 45);
+  --mate: oklch(0.42 0.07 165);
+  --mate-suave: oklch(0.95 0.025 165);
+
+  /* ── Papéis semânticos (consumidos pelos componentes) ────────── */
+  --background: var(--papel);
+  --foreground: var(--tinta);
+  --card: var(--papel-elevado);
+  --card-foreground: var(--tinta);
+  --popover: var(--papel-elevado);
+  --popover-foreground: var(--tinta);
+  --primary: var(--tinta);
+  --primary-foreground: var(--papel);
+  --secondary: var(--areia);
+  --secondary-foreground: var(--tinta);
+  --muted: var(--areia-clara);
+  --muted-foreground: var(--tinta-suave);
+  --accent: var(--areia);
+  --accent-foreground: var(--tinta);
+  --brand: var(--urucum);
+  --brand-foreground: oklch(0.99 0.008 85);
+  --brand-soft: var(--urucum-suave);
+  --support: var(--mate);
+  --support-foreground: oklch(0.99 0.008 85);
+  --support-soft: var(--mate-suave);
+
+  /* ── Estados ─────────────────────────────────────────────────── */
+  --destructive: oklch(0.5 0.2 18);
+  --destructive-foreground: oklch(0.99 0.008 85);
+  --destructive-soft: oklch(0.955 0.025 18);
+  --success: oklch(0.45 0.11 155);
+  --success-soft: oklch(0.95 0.035 155);
+  --warning: oklch(0.5 0.115 70);
+  --warning-soft: oklch(0.955 0.05 88);
+  --info: oklch(0.47 0.12 245);
+  --info-soft: oklch(0.955 0.025 245);
+
+  /* ── Linhas e foco ───────────────────────────────────────────── */
+  --border: oklch(0.895 0.012 80);
+  --input: oklch(0.845 0.014 80);
+  --ring: var(--urucum);
+
+  /* ── Gráficos ────────────────────────────────────────────────── */
+  --chart-1: var(--urucum);
+  --chart-2: var(--mate);
+  --chart-3: oklch(0.62 0.1 80);
+  --chart-4: oklch(0.47 0.12 245);
+  --chart-5: var(--tinta-suave);
+
+  /* ── Sidebar administrativa (sempre escura) ──────────────────── */
+  --sidebar: oklch(0.215 0.018 55);
+  --sidebar-foreground: oklch(0.93 0.01 85);
+  --sidebar-muted-foreground: oklch(0.72 0.014 80);
+  --sidebar-primary: var(--urucum);
+  --sidebar-primary-foreground: oklch(0.99 0.008 85);
+  --sidebar-accent: oklch(0.29 0.02 55);
+  --sidebar-accent-foreground: oklch(0.98 0.008 85);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: var(--urucum);
+
+  /* ── Raios ───────────────────────────────────────────────────── */
+  --radius: 0.5rem;
+
+  /* ── Sombras (levemente quentes, nunca cinza puro) ───────────── */
+  --shadow-color: 40 30% 15%;
+  --elevation-xs: 0 1px 2px hsl(var(--shadow-color) / 0.06);
+  --elevation-sm:
+    0 1px 2px hsl(var(--shadow-color) / 0.06),
+    0 2px 6px hsl(var(--shadow-color) / 0.05);
+  --elevation-md:
+    0 2px 4px hsl(var(--shadow-color) / 0.05),
+    0 8px 20px hsl(var(--shadow-color) / 0.08);
+  --elevation-lg:
+    0 4px 8px hsl(var(--shadow-color) / 0.05),
+    0 20px 48px hsl(var(--shadow-color) / 0.14);
+
+  /* ── Movimento ───────────────────────────────────────────────── */
+  --duration-fast: 120ms;
+  --duration-base: 220ms;
+  --duration-slow: 480ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --easing-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Dimensões de componentes ────────────────────────────────── */
+  --control-h-sm: 2rem;
+  --control-h: 2.5rem;
+  --control-h-lg: 3rem;
+  --control-px: 0.875rem;
+  --sidebar-w: 17rem;
+  --topbar-h: 4rem;
+  --container-max: 82rem;
+  --gutter: clamp(1rem, 4vw, 2.5rem);
+}
+
+.dark {
+  --papel: oklch(0.175 0.012 60);
+  --papel-elevado: oklch(0.215 0.014 60);
+  --areia: oklch(0.275 0.015 60);
+  --areia-clara: oklch(0.245 0.014 60);
+  --tinta: oklch(0.95 0.01 85);
+  --tinta-suave: oklch(0.73 0.015 80);
+  --urucum: oklch(0.68 0.16 42);
+  --urucum-suave: oklch(0.29 0.05 42);
+  --mate: oklch(0.72 0.09 165);
+  --mate-suave: oklch(0.27 0.035 165);
+
+  --primary: var(--tinta);
+  --primary-foreground: var(--papel);
+  --brand-foreground: oklch(0.16 0.02 50);
+  --support-foreground: oklch(0.16 0.02 165);
+
+  --destructive: oklch(0.68 0.17 20);
+  --destructive-foreground: oklch(0.16 0.02 20);
+  --destructive-soft: oklch(0.28 0.05 20);
+  --success: oklch(0.76 0.12 155);
+  --success-soft: oklch(0.27 0.04 155);
+  --warning: oklch(0.8 0.12 80);
+  --warning-soft: oklch(0.29 0.045 80);
+  --info: oklch(0.76 0.1 245);
+  --info-soft: oklch(0.28 0.04 245);
+
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 18%);
+
+  --chart-3: oklch(0.78 0.1 85);
+  --chart-4: oklch(0.72 0.1 245);
+
+  --sidebar: oklch(0.145 0.01 60);
+  --sidebar-accent: oklch(0.235 0.015 60);
+
+  --shadow-color: 40 30% 2%;
+}
