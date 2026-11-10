@@ -21,7 +21,7 @@ export type ColorGroup = { title: string; description: string; tokens: ColorToke
 export const colorGroups: ColorGroup[] = [
   {
     title: "Cores principais",
-    description: "A base da identidade: tinta sobre papel.",
+    description: "A base da identidade: tinta preta sobre papel branco, como numa redação.",
     tokens: [
       { variable: "--primary", name: "Tinta", utility: "bg-primary", usage: "Botões primários, textos e superfícies de destaque.", on: "--primary-foreground" },
       { variable: "--background", name: "Papel", utility: "bg-background", usage: "Fundo geral das páginas.", on: "--foreground" },
@@ -31,17 +31,18 @@ export const colorGroups: ColorGroup[] = [
     title: "Cores de destaque",
     description: "Usadas com parcimônia, para chamar atenção ao que importa.",
     tokens: [
-      { variable: "--brand", name: "Urucum", utility: "bg-brand", usage: "Ação de destaque, links, foco e marca.", on: "--brand-foreground" },
-      { variable: "--brand-soft", name: "Urucum suave", utility: "bg-brand-soft", usage: "Fundos de etiquetas e realces discretos.", on: "--brand" },
+      { variable: "--brand", name: "Azul Redação", utility: "bg-brand", usage: "Ação de destaque, links, foco e marca.", on: "--brand-foreground" },
+      { variable: "--brand-soft", name: "Azul suave", utility: "bg-brand-soft", usage: "Fundos de etiquetas e realces discretos.", on: "--brand" },
     ],
   },
   {
     title: "Cores secundárias",
     description: "Apoio à paleta principal.",
     tokens: [
-      { variable: "--support", name: "Mate", utility: "bg-support", usage: "Cor de apoio em gráficos e editorias.", on: "--support-foreground" },
-      { variable: "--support-soft", name: "Mate suave", utility: "bg-support-soft", usage: "Fundos de apoio.", on: "--support" },
-      { variable: "--secondary", name: "Areia", utility: "bg-secondary", usage: "Botões secundários e superfícies neutras.", on: "--secondary-foreground" },
+      { variable: "--support", name: "Vermelho Manchete", utility: "bg-support", usage: "Urgente, ao vivo e chapéus de destaque — com parcimônia.", on: "--support-foreground" },
+      { variable: "--support-soft", name: "Vermelho suave", utility: "bg-support-soft", usage: "Fundos de avisos de urgência.", on: "--support" },
+      { variable: "--highlight", name: "Amarelo destaque", utility: "bg-highlight", usage: "Marca-texto e selos pontuais (ex.: Exclusivo).", on: "--highlight-foreground" },
+      { variable: "--secondary", name: "Cinza", utility: "bg-secondary", usage: "Botões secundários e superfícies neutras.", on: "--secondary-foreground" },
     ],
   },
   {
@@ -49,7 +50,7 @@ export const colorGroups: ColorGroup[] = [
     description: "Superfícies e camadas da interface.",
     tokens: [
       { variable: "--card", name: "Cartão", utility: "bg-card", usage: "Cartões, campos e painéis elevados.", on: "--card-foreground" },
-      { variable: "--muted", name: "Areia clara", utility: "bg-muted", usage: "Faixas, cabeçalhos de tabela e estados de hover.", on: "--muted-foreground" },
+      { variable: "--muted", name: "Cinza claro", utility: "bg-muted", usage: "Faixas, cabeçalhos de tabela e estados de hover.", on: "--muted-foreground" },
       { variable: "--sidebar", name: "Sidebar", utility: "bg-sidebar", usage: "Navegação do painel e rodapé do portal.", on: "--sidebar-foreground" },
     ],
   },

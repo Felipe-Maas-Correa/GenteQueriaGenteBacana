@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils"
 
 /** Cor-base de cada editoria (tokens do Design System). */
 const editoriaTone: Record<EditoriaSlug, string> = {
-  cidade: "var(--urucum)",
-  comunidade: "var(--mate)",
+  cidade: "var(--azul)",
+  comunidade: "var(--vermelho)",
   cultura: "var(--chart-3)",
   esporte: "var(--chart-4)",
   opiniao: "var(--tinta-suave)",
