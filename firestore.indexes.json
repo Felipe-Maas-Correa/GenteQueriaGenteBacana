@@ -1,0 +1,5 @@
+{
+  "comment": "A aplicação usa apenas filtros de igualdade de campo único (índices automáticos do Firestore). Buscas por texto e faixas são resolvidas em memória, então nenhum índice composto é necessário.",
+  "indexes": [],
+  "fieldOverrides": []
+}

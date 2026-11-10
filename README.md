@@ -9,12 +9,14 @@ Portal jornalístico regional com painel administrativo para gestão de assinant
 
 | Camada | Tecnologia |
 | --- | --- |
-| Aplicação | Next.js 16 (App Router, Server Components, Server Actions, Cache Components), React 19, TypeScript |
+| Aplicação | Next.js 16 (App Router, Cache Components), React 19, TypeScript |
 | Interface | Tailwind CSS 4, shadcn/ui (Radix), Lucide |
 | Animações | Motion (principal), GSAP + ScrollTrigger (efeitos ligados à rolagem), Lenis (rolagem suave do portal) |
-| Dados | Supabase (PostgreSQL, Auth, RLS) |
+| Banco de dados e autenticação | Firebase (Firestore + Firebase Auth), SDK no cliente |
 | Formulários | React Hook Form + Zod |
 | Hospedagem planejada | Vercel |
+
+O painel usa o **SDK do Firebase no navegador**: Firestore e Firebase Auth rodam no lado do cliente e a proteção dos dados é feita pelas **Security Rules** (`firestore.rules`), não por esconder chaves.
 
 ## Como rodar
 
@@ -22,13 +24,13 @@ Requisitos: Node.js 20.9 ou superior.
 
 ```bash
 npm install
-cp .env.example .env.local   # preencha as variáveis do Supabase
+cp .env.example .env.local   # preencha a configuração do Firebase
 npm run dev
 ```
 
 Abra <http://localhost:3000>. O painel fica em `/admin`.
 
-Sem as variáveis do Supabase a aplicação sobe normalmente, mas em **modo de visualização**: o painel abre sem login, mostra o aviso "Banco de dados ainda não conectado" e nada é carregado nem salvo. Com as variáveis definidas, `/admin` passa a exigir autenticação.
+Sem as variáveis do Firebase a aplicação sobe normalmente, mas em **modo de visualização**: o painel abre sem login, mostra o aviso "Firebase ainda não conectado" e nada é carregado nem salvo. Com as variáveis definidas, `/admin` passa a exigir autenticação.
 
 ### Scripts
 
@@ -40,44 +42,50 @@ Sem as variáveis do Supabase a aplicação sobe normalmente, mas em **modo de v
 | `npm run lint` | ESLint |
 | `npx tsc --noEmit` | Checagem de tipos |
 
-## Configuração do Supabase
+## Configuração do Firebase
 
-1. **Crie um projeto** em <https://supabase.com>.
-2. **Variáveis de ambiente** — em *Project Settings → API Keys*, copie a URL do projeto e a chave *publishable* para `.env.local`:
+1. **Crie um projeto** em <https://console.firebase.google.com>.
+
+2. **Registre um app Web** (ícone `</>`) e copie a configuração do SDK para o `.env.local`:
 
    ```
-   NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxx.supabase.co
-   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+   NEXT_PUBLIC_FIREBASE_API_KEY=...
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=seu-projeto
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=seu-projeto.firebasestorage.app
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+   NEXT_PUBLIC_FIREBASE_APP_ID=...
    ```
 
-   A chave `service_role` **não é usada** pela aplicação e não deve ser colocada no projeto.
-3. **Aplique as migrations** de `supabase/migrations`, na ordem dos nomes dos arquivos. Duas formas:
-   - *SQL Editor* do painel do Supabase: cole e execute cada arquivo, do `…000001` ao `…000005`; ou
-   - CLI: `npx supabase link --project-ref <ref>` e depois `npx supabase db push`.
-4. **Desative o cadastro público** em *Authentication → Sign In / Providers* (opção "Allow new users to sign up"). Os usuários são criados apenas pela administração.
-5. **Crie o primeiro usuário** em *Authentication → Users → Add user* (e-mail e senha, com "Auto Confirm User").
-6. **Promova-o a administrador** no SQL Editor:
+   Estas chaves são **públicas por design** (vão para o navegador). A segurança vem das Security Rules, no passo 4.
 
-   ```sql
-   update public.profiles set role = 'admin', name = 'Nome da pessoa'
-   where email = 'email@exemplo.com.br';
-   ```
+3. **Ative os produtos** no Console:
+   - **Authentication → Sign-in method → Email/senha**: ativar.
+   - **Firestore Database → Criar banco de dados** (modo de produção; a região mais próxima).
 
-Novos usuários nascem com o papel `pending` (sem acesso a dados) e precisam ser liberados da mesma forma, com `role = 'editor'` ou `'admin'`.
+4. **Publique as Security Rules.** Copie o conteúdo de [`firestore.rules`](firestore.rules) em **Firestore Database → Regras** e clique em **Publicar**. (Com a CLI do Firebase: `firebase deploy --only firestore:rules`.) **Sem este passo, nada é lido nem gravado.**
 
-### Banco de dados
+5. **Crie o primeiro usuário** em **Authentication → Users → Add user** (e-mail e senha).
 
-| Tabela | Conteúdo |
+6. **Faça login uma vez** em `http://localhost:3000/login`. Nesse primeiro acesso a aplicação cria automaticamente o documento de perfil do usuário em `profiles/{uid}` com papel `pending` (sem acesso aos dados). Você verá a tela "Acesso pendente de liberação".
+
+7. **Promova-se a administrador.** No Console, em **Firestore Database → Dados**, abra a coleção `profiles`, o documento com o seu `uid`, e altere o campo `role` de `pending` para `admin`. Atualize a página — o acesso é liberado na hora.
+
+Novos usuários sempre nascem como `pending` e precisam ser liberados da mesma forma (`role` = `editor` ou `admin`). Não há cadastro público.
+
+### Coleções do Firestore
+
+| Coleção | Conteúdo |
 | --- | --- |
-| `profiles` | Dados complementares dos usuários do Auth e o papel de acesso (`admin`, `editor`, `pending`) |
-| `areas` | Áreas de atendimento |
-| `subscribers` | Assinantes: nome, endereço, telefone, área, vencimento, mês de referência (1–12), observação, status e opção de etiqueta |
+| `profiles` | Documento por usuário (id = `uid` do Auth): `name`, `email`, `role` (`admin`/`editor`/`pending`) |
+| `areas` | Áreas de atendimento: `name`, `description` |
+| `subscribers` | Assinantes: `name`, `address`, `phone`, `area_id`, `due_date`, `due_day`, `reference_month` (1–12), `observation`, `status`, `label_enabled` |
 
-Função `dashboard_stats()` — indicadores do dashboard em uma única chamada.
+Os documentos são criados pela própria aplicação — não é preciso montar as coleções à mão.
 
-**Segurança.** Todas as tabelas têm Row Level Security. Só usuários com papel `admin` ou `editor` leem e alteram assinantes e áreas; a chave pública sozinha (sem login) não acessa nada. As Server Actions revalidam a sessão antes de gravar, e o banco aplica as mesmas regras de forma independente da interface.
+**Segurança.** As regras em `firestore.rules` só permitem ler e gravar assinantes e áreas a usuários com papel `admin` ou `editor`; cada usuário só lê o próprio perfil (admin lê todos) e ninguém promove a si mesmo. A aplicação valida os dados com Zod antes de gravar, e as regras aplicam o controle de acesso de forma independente da interface.
 
-**Pesquisa.** A coluna gerada `search_text` (nome + endereço + telefone, sem acentos e em minúsculas) tem índice trigram; a pesquisa geral, os filtros e a paginação são resolvidos no banco, nunca no navegador.
+**Busca e filtros.** O Firestore não faz busca por texto no servidor. Os filtros de igualdade mais comuns (área, mês, status) são aplicados no servidor (índices automáticos, sem configuração); a busca livre por nome/telefone/endereço e as faixas de dia/data são resolvidas em memória sobre o conjunto já filtrado, com um teto de leitura. É adequado à escala de um jornal regional (centenas a poucos milhares de assinantes). Para bases muito maiores, a busca pode ser migrada para uma extensão como Algolia ou Typesense — ver `src/features/subscribers/queries.ts`.
 
 ## Estrutura
 
@@ -91,23 +99,24 @@ src/
 │   ├── ui/                  Componentes básicos (shadcn/ui adaptados aos tokens)
 │   ├── forms/               Field, PhoneInput, SearchInput, Combobox
 │   ├── shared/              Logo, PageHeader, EmptyState, ConfirmDialog, Reveal…
-│   └── layout/              Sidebar, breadcrumbs, cabeçalho e rodapé do portal
+│   └── layout/              AdminShell (navegação + barreira de acesso), cabeçalho/rodapé do portal
 ├── features/                Regras e telas por módulo
-│   ├── authentication/      Sessão, papéis, login/logout
-│   ├── subscribers/         Filtros, consultas, actions, etiquetas
+│   ├── authentication/      Contexto de autenticação (Firebase Auth), papéis, login/logout
+│   ├── subscribers/         Filtros, consultas, gravações, etiquetas, telas (client)
 │   ├── areas/ · dashboard/ · news/ · style-guide/
 ├── lib/
-│   ├── supabase/            Clientes (servidor e proxy) e variáveis
+│   ├── firebase/            Inicialização do cliente, config e helpers do Firestore
 │   ├── design-system/       Tokens de movimento, catálogo de tokens, base dos campos
 │   ├── validations/         Schemas Zod
-│   └── utils/               Formatação, meses, retorno de actions
+│   └── utils/               Formatação, meses, retorno de operações
+├── hooks/                   useAsync (carregamento de dados no cliente), useDraftValue
 ├── styles/                  tokens.css, typography.css, globals.css
-├── types/database.ts        Tipos do banco
-└── proxy.ts                 Renovação de sessão e proteção de /admin
-supabase/migrations/         SQL versionado
+└── types/database.ts        Modelo de dados (coleções do Firestore)
+firestore.rules              Security Rules (proteção real dos dados)
+firestore.indexes.json       Índices (nenhum composto é necessário)
 ```
 
-Em cada módulo de `features/`: `queries.ts` (leitura), `actions.ts` (Server Actions), `components/` (interface). Validações ficam em `lib/validations`.
+Em cada módulo de `features/`: `queries.ts` (leitura no Firestore), `actions.ts` (gravações, retornando um resultado padronizado), `components/` (telas e componentes). As telas do painel são componentes de cliente que buscam os dados via `useAsync`. Validações ficam em `lib/validations`.
 
 ## Design System
 
@@ -129,12 +138,12 @@ Assinantes com a opção "Gerar etiqueta" desativada ficam fora do documento. No
 
 ## Ainda não implementado
 
-- **Módulo de notícias** (redação, categorias, imagens no Supabase Storage). O portal usa textos e artes ilustrativas, sinalizados como exemplo, definidos em `src/features/news/demo-articles.ts`.
-- **Gestão de usuários pelo painel** — por enquanto feita no painel do Supabase (passos acima).
+- **Módulo de notícias** (redação, categorias, imagens no Firebase Storage). O portal usa textos e artes ilustrativas, sinalizados como exemplo, definidos em `src/features/news/demo-articles.ts`.
+- **Gestão de usuários pelo painel** — por enquanto feita no Console do Firebase (passos acima).
 - **Dados institucionais** (contato, endereço, redes sociais, editorias definitivas) — aguardam definição dos responsáveis pelo jornal; ver `src/lib/site.ts`.
 
 ## Publicação (Vercel)
 
 1. Importe o repositório na Vercel.
-2. Defina `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` e `NEXT_PUBLIC_SITE_URL` (domínio final) nas variáveis de ambiente do projeto.
-3. No Supabase, em *Authentication → URL Configuration*, informe o domínio de produção em "Site URL".
+2. Defina as variáveis `NEXT_PUBLIC_FIREBASE_*` e `NEXT_PUBLIC_SITE_URL` (domínio final) nas variáveis de ambiente do projeto.
+3. No Console do Firebase, em **Authentication → Settings → Authorized domains**, adicione o domínio de produção da Vercel.

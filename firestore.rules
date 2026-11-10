@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// Regras de segurança do Firestore — Gente Querida, Gente Bacana.
+//
+// Esta é a proteção real dos dados (equivalente ao RLS). A interface apenas
+// esconde botões; estas regras impedem o acesso de fato. Publique-as no
+// Console do Firebase (Firestore Database > Regras) ou com a CLI.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function roleOf(uid) {
+      return exists(/databases/$(database)/documents/profiles/$(uid))
+        ? get(/databases/$(database)/documents/profiles/$(uid)).data.role
+        : 'pending';
+    }
+
+    function myRole() {
+      return signedIn() ? roleOf(request.auth.uid) : 'pending';
+    }
+
+    function isStaff() {
+      return myRole() in ['admin', 'editor'];
+    }
+
+    function isAdmin() {
+      return myRole() == 'admin';
+    }
+
+    // Perfis: cada um lê o seu; admin lê todos. Ninguém promove a si mesmo.
+    match /profiles/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Primeiro acesso: o usuário cria o próprio perfil sempre como 'pending'.
+      allow create: if signedIn()
+                    && request.auth.uid == uid
+                    && request.resource.data.role == 'pending';
+
+      // Admin altera qualquer perfil; o próprio usuário pode alterar o seu
+      // desde que NÃO mude o papel.
+      allow update: if signedIn() && (
+        isAdmin() ||
+        (request.auth.uid == uid
+          && request.resource.data.role == resource.data.role)
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Áreas e assinantes: somente a equipe (admin/editor).
+    match /areas/{id} {
+      allow read, create, update, delete: if isStaff();
+    }
+
+    match /subscribers/{id} {
+      allow read, create, update, delete: if isStaff();
+    }
+  }
+}
