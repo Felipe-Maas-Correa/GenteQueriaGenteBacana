@@ -1,17 +1,28 @@
-import "server-only"
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  where,
+  type QueryConstraint,
+} from "firebase/firestore"
 
-import type { AppSupabaseClient } from "@/lib/supabase/server"
-import type { Tables } from "@/types/database"
+import { listAreaOptions } from "@/features/areas/queries"
+import { getDb } from "@/lib/firebase/client"
+import { tsToISO } from "@/lib/firebase/firestore-helpers"
+import { normalizeSearch } from "@/lib/utils/format"
+import type { Subscriber } from "@/types/database"
 
 import {
-  escapeLike,
   PAGE_SIZE,
   searchTerms,
   type SubscriberFilters,
 } from "./filters"
 
 export type SubscriberListItem = Pick<
-  Tables<"subscribers">,
+  Subscriber,
   | "id"
   | "name"
   | "address"
@@ -22,49 +33,85 @@ export type SubscriberListItem = Pick<
   | "label_enabled"
 > & { area: { id: string; name: string } | null }
 
-const LIST_COLUMNS =
-  "id, name, address, phone, due_date, reference_month, status, label_enabled, area:areas(id, name)"
-
-/** Limite de etiquetas por documento, para manter a impressão viável no navegador. */
-export const MAX_LABELS = 3000
-const LABEL_BATCH = 1000
-
 /**
- * Subconjunto do construtor de consultas do Supabase usado pelos filtros.
- * Permite aplicar a mesma lógica à listagem, à contagem e às etiquetas.
+ * Limite de segurança de leitura. O Firestore não faz busca por texto no
+ * servidor; os filtros estruturais mais comuns (área/status/mês) são aplicados
+ * no servidor e o restante (texto, faixas de dia, ordenação e paginação) é
+ * resolvido em memória. Para bases muito grandes, migrar a busca para uma
+ * extensão como Algolia/Typesense.
  */
-type Filterable<Q> = {
-  eq(column: string, value: string | number | boolean): Q
-  gte(column: string, value: string | number): Q
-  lte(column: string, value: string | number): Q
-  ilike(column: string, pattern: string): Q
-}
+const READ_CAP = 3000
+export const MAX_LABELS = 3000
 
-function applyFilters<Q extends Filterable<Q>>(
-  query: Q,
-  filters: SubscriberFilters
-): Q {
-  let q = query
-  for (const term of searchTerms(filters.q)) {
-    q = q.ilike("search_text", `%${escapeLike(term)}%`)
+type SubscriberRecord = Subscriber & { search_text: string }
+
+function mapSubscriber(id: string, data: Record<string, unknown>): Subscriber {
+  const due_date = (data.due_date as string) ?? ""
+  return {
+    id,
+    name: (data.name as string) ?? "",
+    address: (data.address as string) ?? "",
+    phone: (data.phone as string) ?? "",
+    area_id: (data.area_id as string) ?? "",
+    due_date,
+    due_day:
+      typeof data.due_day === "number"
+        ? data.due_day
+        : Number(due_date.slice(8, 10)) || 0,
+    reference_month: (data.reference_month as number) ?? 0,
+    observation: (data.observation as string) ?? "",
+    status: data.status === "inactive" ? "inactive" : "active",
+    label_enabled: data.label_enabled !== false,
+    created_at: tsToISO(data.created_at),
+    updated_at: tsToISO(data.updated_at),
   }
-  if (filters.area) q = q.eq("area_id", filters.area)
-  if (filters.mes) q = q.eq("reference_month", filters.mes)
-  if (filters.status) q = q.eq("status", filters.status)
-  if (filters.vencDe) q = q.gte("due_date", filters.vencDe)
-  if (filters.vencAte) q = q.lte("due_date", filters.vencAte)
-  if (filters.diaDe) q = q.gte("due_day", filters.diaDe)
-  if (filters.diaAte) q = q.lte("due_day", filters.diaAte)
-  return q
 }
 
-const SORT: Record<
-  SubscriberFilters["ordem"],
-  { column: "name" | "due_date" | "created_at"; ascending: boolean }
-> = {
-  nome: { column: "name", ascending: true },
-  vencimento: { column: "due_date", ascending: true },
-  recentes: { column: "created_at", ascending: false },
+/** Escolhe um único filtro de igualdade para aplicar no servidor (índice automático). */
+function serverConstraint(filters: SubscriberFilters): QueryConstraint[] {
+  if (filters.area) return [where("area_id", "==", filters.area)]
+  if (filters.status) return [where("status", "==", filters.status)]
+  if (filters.mes) return [where("reference_month", "==", filters.mes)]
+  return []
+}
+
+/** Carrega os candidatos (leitura no servidor) e aplica todos os filtros em memória. */
+async function loadFiltered(
+  filters: SubscriberFilters
+): Promise<SubscriberRecord[]> {
+  const snapshot = await getDocs(
+    query(collection(getDb(), "subscribers"), ...serverConstraint(filters), limit(READ_CAP))
+  )
+
+  const terms = searchTerms(filters.q)
+  const records: SubscriberRecord[] = []
+
+  for (const d of snapshot.docs) {
+    const subscriber = mapSubscriber(d.id, d.data())
+    if (filters.area && subscriber.area_id !== filters.area) continue
+    if (filters.status && subscriber.status !== filters.status) continue
+    if (filters.mes && subscriber.reference_month !== filters.mes) continue
+    if (filters.vencDe && subscriber.due_date < filters.vencDe) continue
+    if (filters.vencAte && subscriber.due_date > filters.vencAte) continue
+    if (filters.diaDe && subscriber.due_day < filters.diaDe) continue
+    if (filters.diaAte && subscriber.due_day > filters.diaAte) continue
+
+    const searchText = normalizeSearch(
+      `${subscriber.name} ${subscriber.address} ${subscriber.phone}`
+    )
+    if (terms.length && !terms.every((term) => searchText.includes(term))) continue
+
+    records.push({ ...subscriber, search_text: searchText })
+  }
+
+  const compare: Record<SubscriberFilters["ordem"], (a: Subscriber, b: Subscriber) => number> = {
+    nome: (a, b) => a.name.localeCompare(b.name, "pt-BR"),
+    vencimento: (a, b) => a.due_date.localeCompare(b.due_date),
+    recentes: (a, b) => b.created_at.localeCompare(a.created_at),
+  }
+  records.sort((a, b) => compare[filters.ordem](a, b) || a.id.localeCompare(b.id))
+
+  return records
 }
 
 export type SubscriberPage = {
@@ -74,99 +121,72 @@ export type SubscriberPage = {
   pageCount: number
 }
 
-/** Página de assinantes: filtros, ordenação e paginação resolvidos no banco. */
-export async function listSubscribers(
-  supabase: AppSupabaseClient,
-  filters: SubscriberFilters
-): Promise<SubscriberPage> {
-  const sort = SORT[filters.ordem]
-  const from = (filters.pagina - 1) * PAGE_SIZE
+async function areaNameMap(): Promise<Map<string, string>> {
+  const areas = await listAreaOptions()
+  return new Map(areas.map((area) => [area.id, area.name]))
+}
 
-  const base = supabase
-    .from("subscribers")
-    .select(LIST_COLUMNS, { count: "exact" })
-
-  const { data, count, error } = await applyFilters(base, filters)
-    .order(sort.column, { ascending: sort.ascending })
-    .order("id", { ascending: true })
-    .range(from, from + PAGE_SIZE - 1)
-
-  // PGRST103: página além do fim do resultado — tratada como lista vazia.
-  if (error && error.code !== "PGRST103") throw new Error(error.message)
-
-  const total = count ?? 0
+function toListItem(
+  subscriber: Subscriber,
+  areas: Map<string, string>
+): SubscriberListItem {
+  const name = areas.get(subscriber.area_id)
   return {
-    items: (data ?? []) as SubscriberListItem[],
-    total,
-    page: filters.pagina,
-    pageCount: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    id: subscriber.id,
+    name: subscriber.name,
+    address: subscriber.address,
+    phone: subscriber.phone,
+    due_date: subscriber.due_date,
+    reference_month: subscriber.reference_month,
+    status: subscriber.status,
+    label_enabled: subscriber.label_enabled,
+    area: name ? { id: subscriber.area_id, name } : null,
   }
 }
 
-export async function getSubscriber(
-  supabase: AppSupabaseClient,
-  id: string
-): Promise<Tables<"subscribers"> | null> {
-  const { data, error } = await supabase
-    .from("subscribers")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle()
-  if (error) {
-    // 22P02: id fora do formato UUID → tratado como "não encontrado".
-    if (error.code === "22P02") return null
-    throw new Error(error.message)
+/** Página de assinantes com filtros, ordenação e paginação. */
+export async function listSubscribers(
+  filters: SubscriberFilters
+): Promise<SubscriberPage> {
+  const [records, areas] = await Promise.all([loadFiltered(filters), areaNameMap()])
+  const total = records.length
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const page = Math.min(filters.pagina, pageCount)
+  const from = (page - 1) * PAGE_SIZE
+
+  return {
+    items: records
+      .slice(from, from + PAGE_SIZE)
+      .map((record) => toListItem(record, areas)),
+    total,
+    page,
+    pageCount,
   }
-  return data
+}
+
+export async function getSubscriber(id: string): Promise<Subscriber | null> {
+  if (!id) return null
+  const snapshot = await getDoc(doc(getDb(), "subscribers", id))
+  return snapshot.exists() ? mapSubscriber(snapshot.id, snapshot.data()) : null
 }
 
 export type LabelSubscribers = {
   items: SubscriberListItem[]
-  /** Assinantes que atendem aos filtros mas optaram por não ter etiqueta. */
   withoutLabel: number
-  /** Indica que o resultado foi limitado a MAX_LABELS. */
   truncated: boolean
 }
 
 /** Assinantes para a folha de etiquetas (respeita `label_enabled`). */
 export async function listSubscribersForLabels(
-  supabase: AppSupabaseClient,
   filters: SubscriberFilters
 ): Promise<LabelSubscribers> {
-  const sort = SORT[filters.ordem]
-  const items: SubscriberListItem[] = []
-  let total = 0
-
-  for (let from = 0; from < MAX_LABELS; from += LABEL_BATCH) {
-    const base = supabase
-      .from("subscribers")
-      .select(LIST_COLUMNS, { count: "exact" })
-      .eq("label_enabled", true)
-
-    const { data, count, error } = await applyFilters(base, filters)
-      .order(sort.column, { ascending: sort.ascending })
-      .order("id", { ascending: true })
-      .range(from, Math.min(from + LABEL_BATCH, MAX_LABELS) - 1)
-
-    if (error) throw new Error(error.message)
-    total = count ?? 0
-    items.push(...((data ?? []) as SubscriberListItem[]))
-    if (!data || data.length < LABEL_BATCH) break
-  }
-
-  const withoutLabelQuery = supabase
-    .from("subscribers")
-    .select("id", { count: "exact", head: true })
-    .eq("label_enabled", false)
-  const { count: withoutLabel, error } = await applyFilters(
-    withoutLabelQuery,
-    filters
-  )
-  if (error) throw new Error(error.message)
-
+  const [records, areas] = await Promise.all([loadFiltered(filters), areaNameMap()])
+  const withLabel = records.filter((record) => record.label_enabled)
   return {
-    items,
-    withoutLabel: withoutLabel ?? 0,
-    truncated: total > items.length,
+    items: withLabel
+      .slice(0, MAX_LABELS)
+      .map((record) => toListItem(record, areas)),
+    withoutLabel: records.length - withLabel.length,
+    truncated: withLabel.length > MAX_LABELS,
   }
 }

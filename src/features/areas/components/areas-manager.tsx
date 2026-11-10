@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import { useForm } from "react-hook-form"
 import { MapPinIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
@@ -38,11 +37,12 @@ type EditorState = { mode: "create" } | { mode: "edit"; area: AreaWithCount }
 function AreaFormDialog({
   state,
   onClose,
+  onChanged,
 }: {
   state: EditorState
   onClose: () => void
+  onChanged: () => void
 }) {
-  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const editing = state.mode === "edit" ? state.area : null
 
@@ -64,7 +64,7 @@ function AreaFormDialog({
       const result = await saveArea(editing?.id ?? null, values)
       if (result.ok) {
         toast.success(result.message)
-        router.refresh()
+        onChanged()
         onClose()
         return
       }
@@ -128,8 +128,13 @@ function AreaFormDialog({
 }
 
 /** Listagem e manutenção das áreas de atendimento. */
-export function AreasManager({ areas }: { areas: AreaWithCount[] }) {
-  const router = useRouter()
+export function AreasManager({
+  areas,
+  onChanged,
+}: {
+  areas: AreaWithCount[]
+  onChanged: () => void
+}) {
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [toDelete, setToDelete] = useState<AreaWithCount | null>(null)
   const [deleting, startDeleting] = useTransition()
@@ -140,7 +145,7 @@ export function AreasManager({ areas }: { areas: AreaWithCount[] }) {
       const result = await deleteArea(toDelete.id)
       if (result.ok) {
         toast.success(result.message)
-        router.refresh()
+        onChanged()
       } else {
         toast.error(result.message)
       }
@@ -245,6 +250,7 @@ export function AreasManager({ areas }: { areas: AreaWithCount[] }) {
           key={editor.mode === "edit" ? editor.area.id : "create"}
           state={editor}
           onClose={() => setEditor(null)}
+          onChanged={onChanged}
         />
       ) : null}
 

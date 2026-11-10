@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import { Suspense } from "react"
 import { CheckCircle2Icon, CircleAlertIcon } from "lucide-react"
 
 import { PageHeader } from "@/components/shared/page-header"
@@ -12,11 +11,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { roleLabels } from "@/features/authentication/roles"
-import { getSession } from "@/features/authentication/session"
+import { AccountInfo } from "@/features/authentication/components/account-info"
+import { isFirebaseConfigured } from "@/lib/firebase/config"
 import { siteConfig } from "@/lib/site"
-import { isSupabaseConfigured } from "@/lib/supabase/env"
 import { APP_TIME_ZONE } from "@/lib/utils/format"
 
 import packageJson from "../../../../../package.json"
@@ -33,7 +30,7 @@ function InfoRow({ term, children }: { term: string; children: React.ReactNode }
 }
 
 export default function SettingsPage() {
-  const configured = isSupabaseConfigured()
+  const configured = isFirebaseConfigured()
 
   return (
     <div className="space-y-6">
@@ -58,7 +55,7 @@ export default function SettingsPage() {
                 {configured ? (
                   <Badge variant="success">
                     <CheckCircle2Icon aria-hidden />
-                    Supabase conectado
+                    Firebase conectado
                   </Badge>
                 ) : (
                   <Badge variant="warning">
@@ -80,9 +77,7 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<Skeleton className="h-28 w-full" />}>
-              <AccountInfo />
-            </Suspense>
+            <AccountInfo />
           </CardContent>
         </Card>
 
@@ -99,26 +94,5 @@ export default function SettingsPage() {
         </Card>
       </div>
     </div>
-  )
-}
-
-async function AccountInfo() {
-  const session = await getSession()
-
-  if (session.status !== "authenticated") {
-    return (
-      <p className="type-small text-muted-foreground">
-        Nenhum usuário conectado: a autenticação fica disponível depois que o
-        Supabase for configurado.
-      </p>
-    )
-  }
-
-  return (
-    <dl className="divide-y">
-      <InfoRow term="Nome">{session.user.name}</InfoRow>
-      <InfoRow term="E-mail">{session.user.email}</InfoRow>
-      <InfoRow term="Nível de acesso">{roleLabels[session.user.role]}</InfoRow>
-    </dl>
   )
 }

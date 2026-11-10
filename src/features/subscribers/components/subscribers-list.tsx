@@ -26,6 +26,8 @@ type SubscribersListProps = {
   items: SubscriberListItem[]
   /** Data de hoje (AAAA-MM-DD), para sinalizar vencimentos. */
   today: string
+  /** Chamado após excluir um assinante, para recarregar a lista. */
+  onChanged: () => void
 }
 
 function NoLabelMark() {
@@ -46,7 +48,7 @@ function NoLabelMark() {
 }
 
 /** Listagem de assinantes: tabela no desktop, cartões no celular. */
-export function SubscribersList({ items, today }: SubscribersListProps) {
+export function SubscribersList({ items, today, onChanged }: SubscribersListProps) {
   return (
     <>
       {/* Desktop */}
@@ -113,6 +115,7 @@ export function SubscribersList({ items, today }: SubscribersListProps) {
                   <SubscriberRowActions
                     id={subscriber.id}
                     name={subscriber.name}
+                    onChanged={onChanged}
                   />
                 </TableCell>
               </TableRow>
@@ -146,7 +149,7 @@ export function SubscribersList({ items, today }: SubscribersListProps) {
                   {subscriber.label_enabled ? null : <NoLabelMark />}
                 </div>
               </div>
-              <SubscriberRowActions id={subscriber.id} name={subscriber.name} />
+              <SubscriberRowActions id={subscriber.id} name={subscriber.name} onChanged={onChanged} />
             </div>
 
             <dl className="type-small mt-3 grid gap-1.5 text-muted-foreground">

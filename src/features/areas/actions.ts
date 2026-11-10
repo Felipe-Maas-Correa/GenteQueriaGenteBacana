@@ -1,108 +1,93 @@
-"use server"
-
-import { revalidatePath } from "next/cache"
-import { z } from "zod"
-
 import {
-  NotAuthorizedError,
-  requireStaffForAction,
-} from "@/features/authentication/session"
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getCountFromServer,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore"
+
+import { getDb } from "@/lib/firebase/client"
+import { firestoreErrorMessage } from "@/lib/firebase/firestore-helpers"
 import { actionError, type ActionResult } from "@/lib/utils/action-result"
+import { normalizeSearch } from "@/lib/utils/format"
 import { areaSchema, type AreaInput } from "@/lib/validations/area"
 
-const idSchema = z.uuid()
-
-function revalidateAreas() {
-  revalidatePath("/admin/areas")
-  revalidatePath("/admin/assinantes", "layout")
-  revalidatePath("/admin/dashboard")
-}
-
-function databaseError(code: string | undefined): ActionResult<never> {
-  switch (code) {
-    case "23505":
-      return actionError("Já existe uma área com este nome.", {
-        name: ["Já existe uma área com este nome."],
-      })
-    case "23001":
-    case "23503":
-      return actionError(
-        "Esta área possui assinantes vinculados. Mova-os para outra área antes de excluir."
-      )
-    case "42501":
-      return actionError("Você não tem permissão para realizar esta ação.")
-    default:
-      return actionError("Não foi possível salvar. Tente novamente.")
-  }
-}
-
-async function run(work: () => Promise<ActionResult>): Promise<ActionResult> {
-  try {
-    return await work()
-  } catch (error) {
-    if (error instanceof NotAuthorizedError) return actionError(error.message)
-    throw error
-  }
+/**
+ * O Firestore não tem restrição de unicidade: comparamos o nome normalizado
+ * (sem acentos, minúsculo) com as áreas existentes antes de gravar.
+ */
+async function nameInUse(
+  name: string,
+  ignoreId: string | null
+): Promise<boolean> {
+  const normalized = normalizeSearch(name)
+  const snapshot = await getDocs(collection(getDb(), "areas"))
+  return snapshot.docs.some(
+    (d) =>
+      d.id !== ignoreId &&
+      normalizeSearch((d.data().name as string) ?? "") === normalized
+  )
 }
 
 export async function saveArea(
   id: string | null,
   input: AreaInput
 ): Promise<ActionResult> {
-  return run(async () => {
-    const { supabase } = await requireStaffForAction()
+  const parsed = areaSchema.safeParse(input)
+  if (!parsed.success) {
+    return actionError("Confira os campos destacados.", {
+      name: parsed.error.issues
+        .filter((issue) => issue.path[0] === "name")
+        .map((issue) => issue.message),
+    })
+  }
 
-    if (id !== null && !idSchema.safeParse(id).success) {
-      return actionError("Área não encontrada.")
-    }
-    const parsed = areaSchema.safeParse(input)
-    if (!parsed.success) {
-      return actionError(
-        "Confira os campos destacados.",
-        z.flattenError(parsed.error).fieldErrors
-      )
+  try {
+    if (await nameInUse(parsed.data.name, id)) {
+      return actionError("Já existe uma área com este nome.", {
+        name: ["Já existe uma área com este nome."],
+      })
     }
 
+    const db = getDb()
     if (id === null) {
-      const { error } = await supabase.from("areas").insert(parsed.data)
-      if (error) return databaseError(error.code)
-    } else {
-      const { data, error } = await supabase
-        .from("areas")
-        .update(parsed.data)
-        .eq("id", id)
-        .select("id")
-        .maybeSingle()
-      if (error) return databaseError(error.code)
-      if (!data) return actionError("Área não encontrada.")
+      await addDoc(collection(db, "areas"), {
+        ...parsed.data,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      })
+      return { ok: true, message: "Área cadastrada." }
     }
 
-    revalidateAreas()
-    return {
-      ok: true,
-      message: id === null ? "Área cadastrada." : "Alterações salvas.",
-    }
-  })
+    const ref = doc(db, "areas", id)
+    if (!(await getDoc(ref)).exists()) return actionError("Área não encontrada.")
+    await updateDoc(ref, { ...parsed.data, updated_at: serverTimestamp() })
+    return { ok: true, message: "Alterações salvas." }
+  } catch (error) {
+    return actionError(firestoreErrorMessage(error))
+  }
 }
 
 export async function deleteArea(id: string): Promise<ActionResult> {
-  return run(async () => {
-    const { supabase } = await requireStaffForAction()
-
-    if (!idSchema.safeParse(id).success) {
-      return actionError("Área não encontrada.")
+  try {
+    const db = getDb()
+    const countSnapshot = await getCountFromServer(
+      query(collection(db, "subscribers"), where("area_id", "==", id))
+    )
+    if (countSnapshot.data().count > 0) {
+      return actionError(
+        "Esta área possui assinantes vinculados. Mova-os para outra área antes de excluir."
+      )
     }
-
-    const { data, error } = await supabase
-      .from("areas")
-      .delete()
-      .eq("id", id)
-      .select("id")
-      .maybeSingle()
-    if (error) return databaseError(error.code)
-    if (!data) return actionError("Área não encontrada.")
-
-    revalidateAreas()
+    await deleteDoc(doc(db, "areas", id))
     return { ok: true, message: "Área excluída." }
-  })
+  } catch (error) {
+    return actionError(firestoreErrorMessage(error))
+  }
 }

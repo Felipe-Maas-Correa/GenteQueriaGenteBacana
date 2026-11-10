@@ -1,12 +1,16 @@
-"use server"
-
-import { revalidatePath } from "next/cache"
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore"
 import { z } from "zod"
 
-import {
-  NotAuthorizedError,
-  requireStaffForAction,
-} from "@/features/authentication/session"
+import { getDb } from "@/lib/firebase/client"
+import { firestoreErrorMessage } from "@/lib/firebase/firestore-helpers"
 import { actionError, type ActionResult } from "@/lib/utils/action-result"
 import { onlyDigits } from "@/lib/utils/format"
 import {
@@ -14,118 +18,80 @@ import {
   type SubscriberInput,
 } from "@/lib/validations/subscriber"
 
-const idSchema = z.uuid()
-
-function revalidateSubscribers() {
-  revalidatePath("/admin/assinantes", "layout")
-  revalidatePath("/admin/dashboard")
-  revalidatePath("/admin/areas")
-}
-
-function databaseErrorMessage(code: string | undefined): string {
-  switch (code) {
-    case "23503":
-      return "A área selecionada não existe mais. Escolha outra área."
-    case "23514":
-      return "Algum dos dados informados é inválido. Confira os campos."
-    case "42501":
-      return "Você não tem permissão para realizar esta ação."
-    default:
-      return "Não foi possível salvar. Tente novamente."
-  }
-}
-
-function toRow(input: SubscriberInput) {
-  return { ...input, phone: onlyDigits(input.phone) }
-}
-
-async function run<T>(
-  work: () => Promise<ActionResult<T>>
-): Promise<ActionResult<T>> {
-  try {
-    return await work()
-  } catch (error) {
-    if (error instanceof NotAuthorizedError) return actionError(error.message)
-    throw error
+/** Converte os dados do formulário no documento gravado no Firestore. */
+function toDocument(input: SubscriberInput) {
+  const due_date = input.due_date
+  return {
+    name: input.name,
+    address: input.address,
+    phone: onlyDigits(input.phone),
+    area_id: input.area_id,
+    due_date,
+    due_day: Number(due_date.slice(8, 10)) || 0,
+    reference_month: input.reference_month,
+    observation: input.observation,
+    status: input.status,
+    label_enabled: input.label_enabled,
   }
 }
 
 export async function createSubscriber(
   input: SubscriberInput
 ): Promise<ActionResult<{ id: string }>> {
-  return run(async () => {
-    const { supabase } = await requireStaffForAction()
-
-    const parsed = subscriberSchema.safeParse(input)
-    if (!parsed.success) {
-      return actionError(
-        "Confira os campos destacados.",
-        z.flattenError(parsed.error).fieldErrors
-      )
-    }
-
-    const { data, error } = await supabase
-      .from("subscribers")
-      .insert(toRow(parsed.data))
-      .select("id")
-      .single()
-    if (error) return actionError(databaseErrorMessage(error.code))
-
-    revalidateSubscribers()
-    return { ok: true, message: "Assinante cadastrado.", data: { id: data.id } }
-  })
+  const parsed = subscriberSchema.safeParse(input)
+  if (!parsed.success) {
+    return actionError(
+      "Confira os campos destacados.",
+      z.flattenError(parsed.error).fieldErrors
+    )
+  }
+  try {
+    const ref = await addDoc(collection(getDb(), "subscribers"), {
+      ...toDocument(parsed.data),
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp(),
+    })
+    return { ok: true, message: "Assinante cadastrado.", data: { id: ref.id } }
+  } catch (error) {
+    return actionError(firestoreErrorMessage(error))
+  }
 }
 
 export async function updateSubscriber(
   id: string,
   input: SubscriberInput
 ): Promise<ActionResult> {
-  return run(async () => {
-    const { supabase } = await requireStaffForAction()
-
-    if (!idSchema.safeParse(id).success) {
+  const parsed = subscriberSchema.safeParse(input)
+  if (!parsed.success) {
+    return actionError(
+      "Confira os campos destacados.",
+      z.flattenError(parsed.error).fieldErrors
+    )
+  }
+  try {
+    const ref = doc(getDb(), "subscribers", id)
+    if (!(await getDoc(ref)).exists()) {
       return actionError("Assinante não encontrado.")
     }
-    const parsed = subscriberSchema.safeParse(input)
-    if (!parsed.success) {
-      return actionError(
-        "Confira os campos destacados.",
-        z.flattenError(parsed.error).fieldErrors
-      )
-    }
-
-    const { data, error } = await supabase
-      .from("subscribers")
-      .update(toRow(parsed.data))
-      .eq("id", id)
-      .select("id")
-      .maybeSingle()
-    if (error) return actionError(databaseErrorMessage(error.code))
-    if (!data) return actionError("Assinante não encontrado.")
-
-    revalidateSubscribers()
+    await updateDoc(ref, {
+      ...toDocument(parsed.data),
+      updated_at: serverTimestamp(),
+    })
     return { ok: true, message: "Alterações salvas." }
-  })
+  } catch (error) {
+    return actionError(firestoreErrorMessage(error))
+  }
 }
 
 export async function deleteSubscriber(id: string): Promise<ActionResult> {
-  return run(async () => {
-    const { supabase } = await requireStaffForAction()
-
-    if (!idSchema.safeParse(id).success) {
+  try {
+    const ref = doc(getDb(), "subscribers", id)
+    if (!(await getDoc(ref)).exists()) {
       return actionError("Assinante não encontrado.")
     }
-
-    const { data, error } = await supabase
-      .from("subscribers")
-      .delete()
-      .eq("id", id)
-      .select("id")
-      .maybeSingle()
-    if (error) return actionError(databaseErrorMessage(error.code))
-    if (!data) return actionError("Assinante não encontrado.")
-
-    revalidateSubscribers()
+    await deleteDoc(ref)
     return { ok: true, message: "Assinante excluído." }
-  })
+  } catch (error) {
+    return actionError(firestoreErrorMessage(error))
+  }
 }

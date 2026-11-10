@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
@@ -19,8 +18,15 @@ import {
 import { deleteSubscriber } from "../actions"
 
 /** Menu de ações de um assinante na listagem. */
-export function SubscriberRowActions({ id, name }: { id: string; name: string }) {
-  const router = useRouter()
+export function SubscriberRowActions({
+  id,
+  name,
+  onChanged,
+}: {
+  id: string
+  name: string
+  onChanged: () => void
+}) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
@@ -30,7 +36,7 @@ export function SubscriberRowActions({ id, name }: { id: string; name: string })
       if (result.ok) {
         toast.success(result.message)
         setConfirmOpen(false)
-        router.refresh()
+        onChanged()
       } else {
         toast.error(result.message)
       }
