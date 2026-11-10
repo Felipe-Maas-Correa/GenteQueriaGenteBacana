@@ -1,20 +1,28 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useTransition } from "react"
 import { useForm } from "react-hook-form"
 import { CircleAlertIcon, EyeIcon, EyeOffIcon } from "lucide-react"
 
 import { Field } from "@/components/forms/field"
+import { useAuth } from "@/features/authentication/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { loginSchema, type LoginInput } from "@/lib/validations/auth"
 
-import { signIn } from "../actions"
+const ADMIN_HOME = "/admin/dashboard"
+
+function safeNext(next: string | null): string {
+  if (next && next.startsWith("/admin") && !next.startsWith("//")) return next
+  return ADMIN_HOME
+}
 
 export function LoginForm({ disabled = false }: { disabled?: boolean }) {
+  const { signIn } = useAuth()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [pending, startTransition] = useTransition()
   const [formError, setFormError] = useState<string | null>(null)
@@ -32,8 +40,12 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
   const onSubmit = handleSubmit((values) => {
     setFormError(null)
     startTransition(async () => {
-      const result = await signIn(values, searchParams.get("next") ?? undefined)
-      if (result && !result.ok) setFormError(result.message)
+      const result = await signIn(values)
+      if (result.ok) {
+        router.replace(safeNext(searchParams.get("next")))
+      } else {
+        setFormError(result.message)
+      }
     })
   })
 

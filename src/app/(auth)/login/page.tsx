@@ -5,10 +5,10 @@ import { ArrowLeftIcon } from "lucide-react"
 
 import { Logo, LogoMark } from "@/components/shared/logo"
 import { Reveal } from "@/components/shared/reveal"
-import { SupabaseSetupNotice } from "@/components/shared/supabase-setup-notice"
+import { SetupNotice } from "@/components/shared/setup-notice"
 import { Skeleton } from "@/components/ui/skeleton"
 import { LoginForm } from "@/features/authentication/components/login-form"
-import { isSupabaseConfigured } from "@/lib/supabase/env"
+import { isFirebaseConfigured } from "@/lib/firebase/config"
 
 export const metadata: Metadata = {
   title: "Entrar",
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 }
 
 export default function LoginPage() {
-  const configured = isSupabaseConfigured()
+  const configured = isFirebaseConfigured()
 
   return (
     <div className="grid min-h-dvh flex-1 lg:grid-cols-[1.1fr_1fr]">
@@ -57,7 +57,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {configured ? null : <SupabaseSetupNotice />}
+          {configured ? null : <SetupNotice />}
 
           <Suspense fallback={<Skeleton className="h-64 w-full" />}>
             <LoginForm disabled={!configured} />
