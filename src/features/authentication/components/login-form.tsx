@@ -2,16 +2,18 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { useForm } from "react-hook-form"
-import { CircleAlertIcon, EyeIcon, EyeOffIcon } from "lucide-react"
+import { CircleAlertIcon, CircleCheckIcon, EyeIcon, EyeOffIcon } from "lucide-react"
 
 import { Field } from "@/components/forms/field"
 import { useAuth } from "@/features/authentication/auth-context"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { loginSchema, type LoginInput } from "@/lib/validations/auth"
+
+import { SIGNUP_EMAIL_KEY } from "./signup-form"
 
 const ADMIN_HOME = "/admin/dashboard"
 
@@ -28,14 +30,33 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
   const [formError, setFormError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
 
+  const accountCreated = searchParams.get("conta") === "criada"
+
   const {
     register,
     handleSubmit,
+    setValue,
+    setFocus,
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   })
+
+  // Depois do cadastro: preenche o e-mail e leva o cursor para a senha.
+  useEffect(() => {
+    if (!accountCreated) return
+    try {
+      const email = sessionStorage.getItem(SIGNUP_EMAIL_KEY)
+      sessionStorage.removeItem(SIGNUP_EMAIL_KEY)
+      if (email) {
+        setValue("email", email)
+        setFocus("password")
+      }
+    } catch {
+      // Armazenamento indisponível: a pessoa digita o e-mail.
+    }
+  }, [accountCreated, setValue, setFocus])
 
   const onSubmit = handleSubmit((values) => {
     setFormError(null)
@@ -51,6 +72,16 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
 
   return (
     <form onSubmit={onSubmit} noValidate className="grid gap-5">
+      {accountCreated && !formError ? (
+        <Alert variant="success" role="status">
+          <CircleCheckIcon aria-hidden />
+          <AlertTitle>Conta criada com sucesso!</AlertTitle>
+          <AlertDescription>
+            Entre com seu e-mail e senha. O acesso ao painel é liberado por um
+            administrador do jornal.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {formError ? (
         <Alert variant="destructive">
           <CircleAlertIcon aria-hidden />

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 import { useForm } from "react-hook-form"
 import { CircleAlertIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { Field } from "@/components/forms/field"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -13,8 +14,11 @@ import { Input } from "@/components/ui/input"
 import { useAuth } from "@/features/authentication/auth-context"
 import { signUpSchema, type SignUpInput } from "@/lib/validations/auth"
 
+/** Chave do e-mail recém-cadastrado, usada para preencher a aba Entrar. */
+export const SIGNUP_EMAIL_KEY = "gqgb:signup-email"
+
 export function SignUpForm({ disabled = false }: { disabled?: boolean }) {
-  const { signUp } = useAuth()
+  const { signUp, signOutUser } = useAuth()
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [formError, setFormError] = useState<string | null>(null)
@@ -33,8 +37,18 @@ export function SignUpForm({ disabled = false }: { disabled?: boolean }) {
     startTransition(async () => {
       const result = await signUp(values)
       if (result.ok) {
-        // O painel mostra "acesso pendente" até um administrador liberar.
-        router.replace("/admin/dashboard")
+        // O Firebase entra automaticamente após criar a conta; saímos para
+        // que a pessoa faça o primeiro login na aba Entrar.
+        await signOutUser()
+        try {
+          sessionStorage.setItem(SIGNUP_EMAIL_KEY, values.email)
+        } catch {
+          // Armazenamento indisponível: o e-mail só não vem preenchido.
+        }
+        toast.success("Conta criada com sucesso!", {
+          description: "Agora entre com seu e-mail e senha.",
+        })
+        router.replace("/login?conta=criada")
       } else {
         setFormError(result.message)
       }
