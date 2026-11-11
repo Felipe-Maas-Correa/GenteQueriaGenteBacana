@@ -149,7 +149,7 @@ Assinantes com a opção "Gerar etiqueta" desativada ficam fora do documento. No
 
 ## Ainda não implementado
 
-- **Módulo de notícias** (redação, categorias, imagens no Firebase Storage). O portal usa textos e artes ilustrativas, sinalizados como exemplo, definidos em `src/features/news/demo-articles.ts`.
+- **Imagens grandes:** as fotos ficam em base64 no Firestore (até ~500 KB cada, gratuito). Para muito volume, migrar para Cloudinary ou Firebase Storage (plano Blaze).
 - **Gestão de usuários pelo painel** — por enquanto feita no Console do Firebase (passos acima).
 - **Dados institucionais** (contato, endereço, redes sociais, editorias definitivas) — aguardam definição dos responsáveis pelo jornal; ver `src/lib/site.ts`.
 

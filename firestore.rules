@@ -67,6 +67,16 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // Fotos das notícias em base64. O público as recebe pela rota
+    // /api/imagens/{id} (servidor), então a leitura direta fica com a equipe.
+    match /imagens/{id} {
+      allow read, delete: if isStaff();
+      allow create: if isStaff()
+                    && request.resource.data.data is string
+                    && request.resource.data.data.size() < 900000;
+      allow update: if false;
+    }
+
     // Notícias: qualquer visitante lê as publicadas; a equipe lê e edita tudo.
     // Consultas públicas precisam filtrar por status == "published".
     match /articles/{id} {

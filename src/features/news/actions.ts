@@ -12,10 +12,9 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore"
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage"
 
-import { getDb, getFirebaseStorage } from "@/lib/firebase/client"
-import { firestoreErrorMessage } from "@/lib/firebase/firestore-helpers"
+import { getDb } from "@/lib/firebase/client"
+import { firestoreErrorMessage, withTimeout } from "@/lib/firebase/firestore-helpers"
 import { actionError, type ActionResult } from "@/lib/utils/action-result"
 import { articleSchema, type ArticleInput } from "@/lib/validations/article"
 import type { CardSize } from "@/types/database"
@@ -133,56 +132,80 @@ export async function saveHomeLayout(
   }
 }
 
-/** Reduz a foto no navegador (lado maior ≤ 1920px, JPEG) antes do envio. */
-async function compressImage(file: File): Promise<Blob> {
+/**
+ * Fotos das notícias (gratuito, sem Firebase Storage).
+ *
+ * A foto é reduzida no navegador e gravada em base64 na coleção `imagens` do
+ * Firestore (limite de 1 MiB por documento). A notícia guarda só o endereço
+ * /api/imagens/{id}; a rota do servidor entrega a imagem com cache longo.
+ */
+const MAX_SIDE = 1600
+// Base64 cresce ~33%: 700 KB de base64 ≈ 520 KB de imagem, bem abaixo de 1 MiB.
+const MAX_BASE64_LENGTH = 700_000
+
+async function compressImage(
+  file: File
+): Promise<{ base64: string; width: number; height: number }> {
   const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, 1920 / Math.max(bitmap.width, bitmap.height))
-  const canvas = document.createElement("canvas")
-  canvas.width = Math.round(bitmap.width * scale)
-  canvas.height = Math.round(bitmap.height * scale)
-  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  bitmap.close()
-  return new Promise((resolve, reject) =>
-    canvas.toBlob(
-      (blob) =>
-        blob ? resolve(blob) : reject(new Error("Falha ao processar a imagem.")),
-      "image/jpeg",
-      0.85
-    )
-  )
+  let side = MAX_SIDE
+  try {
+    // Reduz qualidade e, se preciso, o tamanho até caber no limite.
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height))
+      const canvas = document.createElement("canvas")
+      canvas.width = Math.round(bitmap.width * scale)
+      canvas.height = Math.round(bitmap.height * scale)
+      const context = canvas.getContext("2d")
+      if (!context) throw new Error("canvas")
+      context.fillStyle = "#ffffff" // PNG com transparência vira fundo branco
+      context.fillRect(0, 0, canvas.width, canvas.height)
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+
+      for (const quality of [0.85, 0.75, 0.65]) {
+        const dataUrl = canvas.toDataURL("image/jpeg", quality)
+        const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1)
+        if (base64.length <= MAX_BASE64_LENGTH) {
+          return { base64, width: canvas.width, height: canvas.height }
+        }
+      }
+      side = Math.round(side * 0.8)
+    }
+  } finally {
+    bitmap.close()
+  }
+  throw new Error("too-large")
 }
 
-/** Envia a foto ao Firebase Storage e devolve o endereço público. */
+/** Grava a foto no Firestore e devolve o endereço público dela. */
 export async function uploadArticleImage(
   file: File
 ): Promise<ActionResult<{ url: string }>> {
   if (!file.type.startsWith("image/")) {
-    return actionError("Selecione um arquivo de imagem.")
+    return actionError("Selecione um arquivo de imagem (JPG, PNG ou WebP).")
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    return actionError("A foto é muito grande (máximo de 25 MB).")
+  }
+  let image: Awaited<ReturnType<typeof compressImage>>
+  try {
+    image = await compressImage(file)
+  } catch {
+    return actionError("Não foi possível processar esta imagem. Tente outra foto.")
   }
   try {
-    const blob = await compressImage(file)
-    const storageRef = ref(
-      getFirebaseStorage(),
-      `articles/${crypto.randomUUID()}.jpg`
+    const created = await withTimeout(
+      addDoc(collection(getDb(), "imagens"), {
+        data: image.base64,
+        content_type: "image/jpeg",
+        width: image.width,
+        height: image.height,
+        size: Math.round((image.base64.length * 3) / 4),
+        created_at: serverTimestamp(),
+      }),
+      20_000
     )
-    await uploadBytes(storageRef, blob, { contentType: "image/jpeg" })
-    return {
-      ok: true,
-      message: "Foto enviada.",
-      data: { url: await getDownloadURL(storageRef) },
-    }
+    return { ok: true, message: "Foto enviada.", data: { url: `/api/imagens/${created.id}` } }
   } catch (error) {
-    const code = (error as { code?: string })?.code ?? ""
-    if (code === "storage/unauthorized") {
-      return actionError(
-        "Sem permissão para enviar fotos. Publique as regras do Storage (storage.rules)."
-      )
-    }
-    if (code.startsWith("storage/")) {
-      return actionError(
-        "Não foi possível enviar a foto. Verifique se o Firebase Storage está ativado ou cole o endereço de uma imagem."
-      )
-    }
-    return actionError("Não foi possível processar a imagem.")
+    return actionError(firestoreErrorMessage(error))
   }
 }

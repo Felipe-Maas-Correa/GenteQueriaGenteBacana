@@ -1,7 +1,6 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app"
 import { getAuth, type Auth } from "firebase/auth"
 import { getFirestore, type Firestore } from "firebase/firestore"
-import { getStorage, type FirebaseStorage } from "firebase/storage"
 
 import { firebaseConfig, isFirebaseConfigured } from "./config"
 
@@ -41,7 +40,3 @@ export function getFirebaseAuth(): Auth {
   return requireFirebase().auth
 }
 
-/** Firebase Storage (fotos das notícias). */
-export function getFirebaseStorage(): FirebaseStorage {
-  return getStorage(requireFirebase().app)
-}

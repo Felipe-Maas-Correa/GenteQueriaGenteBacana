@@ -7,6 +7,7 @@
  */
 import { cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app"
 import { getAuth, type Auth } from "firebase-admin/auth"
+import { getFirestore, type Firestore } from "firebase-admin/firestore"
 
 export function isAdminConfigured(): boolean {
   return Boolean(
@@ -30,4 +31,8 @@ function adminApp(): App {
 
 export function getAdminAuth(): Auth {
   return getAuth(adminApp())
+}
+
+export function getAdminDb(): Firestore {
+  return getFirestore(adminApp())
 }

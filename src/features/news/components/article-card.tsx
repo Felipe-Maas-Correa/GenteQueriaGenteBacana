@@ -60,7 +60,7 @@ export function ArticleImage({
   return (
     <div className={cn("relative overflow-hidden bg-muted", className)}>
       {article.image_url ? (
-        // Fotos vêm do Firebase Storage ou de endereços externos colados no
+        // Fotos vêm de /api/imagens (Firestore) ou de endereços externos colados no
         // painel; <img> evita configurar cada domínio no next/image.
         // eslint-disable-next-line @next/next/no-img-element
         <img
