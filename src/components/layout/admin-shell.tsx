@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { DatabaseIcon, HourglassIcon } from "lucide-react"
+import Link from "next/link"
+import { DatabaseIcon, LockIcon } from "lucide-react"
 
 import { AdminBreadcrumbs } from "@/components/layout/admin-breadcrumbs"
 import {
@@ -53,25 +54,29 @@ function AdminGate({ children }: { children: React.ReactNode }) {
   if (user && !isStaff(user.role)) {
     return (
       <EmptyState
-        icon={HourglassIcon}
-        title="Acesso pendente de liberação"
+        icon={LockIcon}
+        title="Área restrita à equipe do jornal"
         description={
           <>
-            Sua conta ({user.email}) foi criada, mas ainda não recebeu permissão
-            para usar o painel. Peça a um administrador para liberar o seu
-            acesso.
+            Sua conta ({user.email}) é de leitor. O painel é usado pela redação
+            para publicar as notícias.
           </>
         }
         action={
-          <Button
-            variant="outline"
-            onClick={async () => {
-              await signOutUser()
-              router.replace("/login")
-            }}
-          >
-            Sair
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button asChild>
+              <Link href="/">Ir para as notícias</Link>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await signOutUser()
+                router.replace("/")
+              }}
+            >
+              Sair
+            </Button>
+          </div>
         }
       />
     )

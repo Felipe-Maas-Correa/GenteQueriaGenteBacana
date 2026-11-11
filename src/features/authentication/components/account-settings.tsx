@@ -37,7 +37,7 @@ function ProfileCard() {
         <CardHeader>
           <CardTitle>Seus dados</CardTitle>
           <CardDescription>
-            Disponível depois que o Firebase for configurado e você entrar no painel.
+            Entre na sua conta para ver e editar seus dados.
           </CardDescription>
         </CardHeader>
       </Card>

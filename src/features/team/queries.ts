@@ -9,6 +9,7 @@ import {
 import { getDb } from "@/lib/firebase/client"
 import { firestoreErrorMessage, tsToISO } from "@/lib/firebase/firestore-helpers"
 import { actionError, type ActionResult } from "@/lib/utils/action-result"
+import { normalizeRole } from "@/features/authentication/roles"
 import type { Profile, UserRole } from "@/types/database"
 
 /** Usuários do painel. As regras só permitem esta leitura a administradores. */
@@ -21,7 +22,7 @@ export async function listProfiles(): Promise<Profile[]> {
         id: d.id,
         name: (data.name as string) ?? "",
         email: (data.email as string) ?? "",
-        role: (data.role as UserRole) ?? "pending",
+        role: normalizeRole(data.role),
         created_at: tsToISO(data.created_at),
         updated_at: tsToISO(data.updated_at),
       }

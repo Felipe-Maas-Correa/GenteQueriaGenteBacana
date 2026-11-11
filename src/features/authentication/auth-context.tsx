@@ -24,6 +24,7 @@ import {
   setDoc,
 } from "firebase/firestore"
 
+import { normalizeRole } from "@/features/authentication/roles"
 import { getFirebase } from "@/lib/firebase/client"
 import { withTimeout } from "@/lib/firebase/firestore-helpers"
 import { actionError, type ActionResult } from "@/lib/utils/action-result"
@@ -75,13 +76,13 @@ function mapUser(firebaseUser: FirebaseUser, profile: Profile | null): CurrentUs
       firebaseUser.displayName ||
       email.split("@")[0] ||
       "Usuário",
-    role: profile?.role ?? "pending",
+    role: normalizeRole(profile?.role),
   }
 }
 
 /**
  * Garante que exista um documento de perfil para o usuário autenticado.
- * Novos usuários nascem com papel `pending` (sem acesso aos dados); a promoção
+ * Novos usuários nascem com papel `reader` (leitor: só lê as notícias); a promoção
  * para `editor`/`admin` é feita por um administrador.
  */
 async function ensureProfile(firebaseUser: FirebaseUser) {
@@ -93,7 +94,7 @@ async function ensureProfile(firebaseUser: FirebaseUser) {
     await setDoc(ref, {
       name: firebaseUser.displayName ?? "",
       email: firebaseUser.email ?? "",
-      role: "pending",
+      role: "reader",
       created_at: serverTimestamp(),
       updated_at: serverTimestamp(),
     })
@@ -138,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await withTimeout(ensureProfile(nextUser))
       } catch {
-        // Banco indisponível ou regras recusando a criação: segue com pending.
+        // Banco indisponível ou regras recusando a criação: segue como leitor.
       }
       setStatus("authenticated")
     })
@@ -197,7 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           parsed.data.password
         )
         await updateProfile(created, { displayName: parsed.data.name })
-        // O perfil nasce como "pending"; aqui só garantimos o nome. Com o
+        // O perfil nasce como "reader"; aqui só garantimos o nome. Com o
         // banco fora do ar, a conta já existe no Auth e o perfil é criado
         // no próximo login — por isso o tempo-limite não bloqueia o cadastro.
         await withTimeout(setDoc(
@@ -205,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           {
             name: parsed.data.name,
             email: parsed.data.email,
-            role: "pending",
+            role: "reader",
             created_at: serverTimestamp(),
             updated_at: serverTimestamp(),
           },

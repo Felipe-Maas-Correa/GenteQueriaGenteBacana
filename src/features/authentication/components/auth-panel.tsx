@@ -37,8 +37,7 @@ export function AuthPanel({ disabled = false }: { disabled?: boolean }) {
 
       <TabsContent value="cadastro" className="space-y-4">
         <p className="type-small text-muted-foreground">
-          Sua conta começa com acesso pendente. Um administrador do jornal libera o
-          painel em Sistema › Equipe.
+          Crie sua conta de leitor para acompanhar as notícias do jornal.
         </p>
         <SignUpForm disabled={disabled} />
       </TabsContent>

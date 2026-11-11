@@ -15,11 +15,11 @@ service cloud.firestore {
     function roleOf(uid) {
       return exists(/databases/$(database)/documents/profiles/$(uid))
         ? get(/databases/$(database)/documents/profiles/$(uid)).data.role
-        : 'pending';
+        : 'reader';
     }
 
     function myRole() {
-      return signedIn() ? roleOf(request.auth.uid) : 'pending';
+      return signedIn() ? roleOf(request.auth.uid) : 'reader';
     }
 
     function isStaff() {
@@ -34,10 +34,12 @@ service cloud.firestore {
     match /profiles/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
 
-      // Primeiro acesso: o usuário cria o próprio perfil sempre como 'pending'.
+      // Primeiro acesso: o usuário cria o próprio perfil sempre como 'reader' (leitor).
+      // Para promover alguém a admin/editor, altere o campo role direto no banco
+      // ou use Sistema › Equipe (somente administradores).
       allow create: if signedIn()
                     && request.auth.uid == uid
-                    && request.resource.data.role == 'pending';
+                    && request.resource.data.role == 'reader';
 
       // Admin altera qualquer perfil; o próprio usuário pode alterar o seu
       // desde que NÃO mude o papel.

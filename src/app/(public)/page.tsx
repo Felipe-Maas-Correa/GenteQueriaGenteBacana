@@ -1,19 +1,11 @@
 import { Reveal } from "@/components/shared/reveal"
-import { ScrollMarquee } from "@/components/shared/scroll-effects"
 import { HomeFeed } from "@/features/news/components/public-views"
-import { editorias } from "@/lib/site"
 
 export default function HomePage() {
   return (
     <>
       {/* Capa: montada no painel em Redação › Página inicial */}
       <HomeFeed />
-
-      {/* Faixa de editorias */}
-      <ScrollMarquee
-        items={editorias.map((editoria) => editoria.label)}
-        className="border-y bg-muted py-8 sm:py-10"
-      />
 
       {/* Manifesto */}
       <section className="bg-primary text-primary-foreground">

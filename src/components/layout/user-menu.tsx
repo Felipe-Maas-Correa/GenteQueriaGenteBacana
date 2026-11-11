@@ -64,7 +64,7 @@ export function UserMenu() {
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem asChild>
-          <Link href="/admin/minha-conta">
+          <Link href="/minha-conta">
             <SettingsIcon aria-hidden />
             Minha conta e tema
           </Link>
@@ -77,7 +77,7 @@ export function UserMenu() {
             event.preventDefault()
             startTransition(async () => {
               await signOutUser()
-              router.replace("/login")
+              router.replace("/")
             })
           }}
         >

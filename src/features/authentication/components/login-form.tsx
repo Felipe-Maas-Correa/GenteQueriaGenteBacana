@@ -15,11 +15,12 @@ import { loginSchema, type LoginInput } from "@/lib/validations/auth"
 
 import { SIGNUP_EMAIL_KEY } from "./signup-form"
 
-const ADMIN_HOME = "/admin/dashboard"
+// Sem destino definido, volta para a capa; a equipe acessa o painel pelo menu.
+const DEFAULT_HOME = "/"
 
 function safeNext(next: string | null): string {
-  if (next && next.startsWith("/admin") && !next.startsWith("//")) return next
-  return ADMIN_HOME
+  if (next && next.startsWith("/") && !next.startsWith("//")) return next
+  return DEFAULT_HOME
 }
 
 export function LoginForm({ disabled = false }: { disabled?: boolean }) {
@@ -77,8 +78,7 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
           <CircleCheckIcon aria-hidden />
           <AlertTitle>Conta criada com sucesso!</AlertTitle>
           <AlertDescription>
-            Entre com seu e-mail e senha. O acesso ao painel é liberado por um
-            administrador do jornal.
+            Agora é só entrar com seu e-mail e senha.
           </AlertDescription>
         </Alert>
       ) : null}

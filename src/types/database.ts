@@ -7,7 +7,8 @@
  * Firestore na camada de dados).
  */
 export type SubscriberStatus = "active" | "inactive"
-export type UserRole = "admin" | "editor" | "pending"
+/** `reader` = leitor (padrão de toda conta nova): só lê as notícias. */
+export type UserRole = "admin" | "editor" | "reader"
 
 export type Area = {
   id: string

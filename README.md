@@ -67,17 +67,17 @@ Sem as variáveis do Firebase a aplicação sobe normalmente, mas em **modo de v
 
 5. **Crie o primeiro usuário** em **Authentication → Users → Add user** (e-mail e senha).
 
-6. **Faça login uma vez** em `http://localhost:3000/login`. Nesse primeiro acesso a aplicação cria automaticamente o documento de perfil do usuário em `profiles/{uid}` com papel `pending` (sem acesso aos dados). Você verá a tela "Acesso pendente de liberação".
+6. **Faça login uma vez** em `http://localhost:3000/login`. Nesse primeiro acesso a aplicação cria automaticamente o documento de perfil do usuário em `profiles/{uid}` com papel `reader` (leitor: só lê as notícias). Ao abrir o painel você verá a tela "Área restrita à equipe do jornal".
 
-7. **Promova-se a administrador.** No Console, em **Firestore Database → Dados**, abra a coleção `profiles`, o documento com o seu `uid`, e altere o campo `role` de `pending` para `admin`. Atualize a página — o acesso é liberado na hora.
+7. **Promova-se a administrador.** No Console, em **Firestore Database → Dados**, abra a coleção `profiles`, o documento com o seu `uid`, e altere o campo `role` de `reader` para `admin`. Atualize a página — o acesso é liberado na hora.
 
-Novos usuários sempre nascem como `pending` e precisam ser liberados da mesma forma (`role` = `editor` ou `admin`). Não há cadastro público.
+Qualquer pessoa pode criar uma conta pelo botão **Criar conta** do site; ela nasce como `reader` (leitor). O primeiro administrador é promovido direto no banco, como acima; depois disso, os administradores definem os papéis em **Sistema › Equipe** (`editor` ou `admin`).
 
 ### Coleções do Firestore
 
 | Coleção | Conteúdo |
 | --- | --- |
-| `profiles` | Documento por usuário (id = `uid` do Auth): `name`, `email`, `role` (`admin`/`editor`/`pending`) |
+| `profiles` | Documento por usuário (id = `uid` do Auth): `name`, `email`, `role` (`admin`/`editor`/`reader`) |
 | `areas` | Áreas de atendimento: `name`, `description` |
 | `subscribers` | Assinantes: `name`, `address`, `phone`, `area_id`, `due_date`, `due_day`, `reference_month` (1–12), `observation`, `status`, `label_enabled` |
 

@@ -8,7 +8,6 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { QueryError } from "@/components/shared/query-error"
 import { SetupNotice } from "@/components/shared/setup-notice"
 import { TableSkeleton } from "@/components/shared/skeletons"
-import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -35,7 +34,7 @@ import { listProfiles, updateProfile } from "../queries"
 const roleDescriptions: Record<UserRole, string> = {
   admin: "Tudo, inclusive liberar acessos.",
   editor: "Notícias, página inicial, assinantes e áreas.",
-  pending: "Sem acesso ao painel.",
+  reader: "Só lê as notícias. Sem acesso ao painel.",
 }
 
 export function TeamView() {
@@ -73,18 +72,12 @@ export function TeamView() {
     }
   }
 
-  const pendingCount = (data ?? []).filter((p) => p.role === "pending").length
 
   return (
     <div className="space-y-4">
       <p className="type-small text-muted-foreground">
-        Novos membros entram com <strong>acesso pendente</strong> ao fazer o primeiro
-        login. Escolha o papel de cada um para liberar o painel.
-        {pendingCount > 0 ? (
-          <Badge variant="warning" className="ml-2">
-            {pendingCount} aguardando liberação
-          </Badge>
-        ) : null}
+        Toda conta criada no site começa como <strong>leitor</strong>. Para dar acesso
+        ao painel, escolha <strong>Editor</strong> ou <strong>Administrador</strong>.
       </p>
 
       <div className="overflow-hidden rounded-xl border bg-card">
