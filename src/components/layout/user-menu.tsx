@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
-import { LogOutIcon, SettingsIcon } from "lucide-react"
+import { LayoutDashboardIcon, LogOutIcon, SettingsIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import {
@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/features/authentication/auth-context"
+import { isStaff, useAuth } from "@/features/authentication/auth-context"
 import { roleLabels } from "@/features/authentication/roles"
 
 function initials(name: string): string {
@@ -55,6 +55,14 @@ export function UserMenu() {
           <Badge variant="brand">{roleLabels[user.role]}</Badge>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isStaff(user.role) ? (
+          <DropdownMenuItem asChild>
+            <Link href="/admin/dashboard">
+              <LayoutDashboardIcon aria-hidden />
+              Painel do jornal
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem asChild>
           <Link href="/admin/minha-conta">
             <SettingsIcon aria-hidden />

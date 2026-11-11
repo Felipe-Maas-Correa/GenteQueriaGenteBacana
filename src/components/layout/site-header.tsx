@@ -2,10 +2,12 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { MenuIcon } from "lucide-react"
+import { MenuIcon, UserIcon } from "lucide-react"
 import { motion, useMotionValueEvent, useScroll } from "motion/react"
 
+import { UserMenu } from "@/components/layout/user-menu"
 import { Logo } from "@/components/shared/logo"
+import { useAuth } from "@/features/authentication/auth-context"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -19,6 +21,30 @@ import { cn } from "@/lib/utils"
 
 const navLinkClass =
   "relative rounded-sm py-1 text-sm font-medium text-foreground/75 outline-none transition-colors duration-(--duration-fast) hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:origin-left after:scale-x-0 after:bg-brand after:transition-transform after:duration-(--duration-base) after:ease-emphasized hover:after:scale-x-100"
+
+/** Canto superior direito: menu do usuário conectado, ou Entrar / Criar conta. */
+function HeaderAccount() {
+  const { status } = useAuth()
+
+  if (status === "authenticated") return <UserMenu />
+  if (status === "loading") {
+    return <span className="size-9 animate-pulse rounded-full bg-muted" aria-hidden />
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Button asChild variant="outline" size="sm">
+        <Link href="/login">
+          <UserIcon aria-hidden />
+          Entrar
+        </Link>
+      </Button>
+      <Button asChild size="sm" className="hidden sm:inline-flex">
+        <Link href="/login?modo=cadastro">Criar conta</Link>
+      </Button>
+    </div>
+  )
+}
 
 /** Cabeçalho do portal: fica fixo e ganha fundo ao rolar a página. */
 export function SiteHeader() {
@@ -64,9 +90,10 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
+          <Button asChild variant="ghost" size="sm" className="hidden lg:inline-flex">
             <Link href="/noticias">Todas as notícias</Link>
           </Button>
+          <HeaderAccount />
 
           <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>

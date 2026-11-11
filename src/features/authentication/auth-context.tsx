@@ -9,9 +9,11 @@ import {
   useState,
 } from "react"
 import {
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
+  updateProfile,
   type User as FirebaseUser,
 } from "firebase/auth"
 import {
@@ -24,7 +26,12 @@ import {
 
 import { getFirebase } from "@/lib/firebase/client"
 import { actionError, type ActionResult } from "@/lib/utils/action-result"
-import { loginSchema, type LoginInput } from "@/lib/validations/auth"
+import {
+  loginSchema,
+  signUpSchema,
+  type LoginInput,
+  type SignUpInput,
+} from "@/lib/validations/auth"
 import type { Profile, UserRole } from "@/types/database"
 
 const STAFF_ROLES: readonly UserRole[] = ["admin", "editor"]
@@ -50,6 +57,8 @@ type AuthContextValue = {
   status: AuthStatus
   user: CurrentUser | null
   signIn: (input: LoginInput) => Promise<ActionResult>
+  /** Cria uma conta; ela começa com acesso pendente até um administrador liberar. */
+  signUp: (input: SignUpInput) => Promise<ActionResult>
   signOutUser: () => Promise<void>
 }
 
@@ -173,6 +182,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [firebase]
   )
 
+  const signUp = useCallback(
+    async (input: SignUpInput): Promise<ActionResult> => {
+      if (!firebase) {
+        return actionError("O Firebase ainda não foi configurado neste ambiente.")
+      }
+      const parsed = signUpSchema.safeParse(input)
+      if (!parsed.success) return actionError("Confira os campos informados.")
+      try {
+        const { user: created } = await createUserWithEmailAndPassword(
+          firebase.auth,
+          parsed.data.email,
+          parsed.data.password
+        )
+        await updateProfile(created, { displayName: parsed.data.name })
+        // O perfil nasce como "pending"; aqui só garantimos o nome.
+        await setDoc(
+          doc(firebase.db, "profiles", created.uid),
+          {
+            name: parsed.data.name,
+            email: parsed.data.email,
+            role: "pending",
+            created_at: serverTimestamp(),
+            updated_at: serverTimestamp(),
+          },
+          { merge: true }
+        ).catch(() => {})
+        return { ok: true, message: "Conta criada." }
+      } catch (error) {
+        const code = (error as { code?: string }).code
+        if (code === "auth/email-already-in-use") {
+          return actionError("Já existe uma conta com este e-mail. Use Entrar.")
+        }
+        if (code === "auth/weak-password") {
+          return actionError("Escolha uma senha mais forte.")
+        }
+        if (code === "auth/operation-not-allowed") {
+          return actionError(
+            "O cadastro por e-mail não está ativado no Firebase (Authentication › Sign-in method)."
+          )
+        }
+        return actionError(translateAuthError(code))
+      }
+    },
+    [firebase]
+  )
+
   const signOutUser = useCallback(async () => {
     if (firebase) await signOut(firebase.auth)
   }, [firebase])
@@ -182,8 +237,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       status === "authenticated" && firebaseUser
         ? mapUser(firebaseUser, profile)
         : null
-    return { status, user, signIn, signOutUser }
-  }, [status, firebaseUser, profile, signIn, signOutUser])
+    return { status, user, signIn, signUp, signOutUser }
+  }, [status, firebaseUser, profile, signIn, signUp, signOutUser])
 
   return <AuthContext value={value}>{children}</AuthContext>
 }

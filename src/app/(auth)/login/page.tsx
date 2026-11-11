@@ -7,11 +7,11 @@ import { Logo, LogoMark } from "@/components/shared/logo"
 import { Reveal } from "@/components/shared/reveal"
 import { SetupNotice } from "@/components/shared/setup-notice"
 import { Skeleton } from "@/components/ui/skeleton"
-import { LoginForm } from "@/features/authentication/components/login-form"
+import { AuthPanel } from "@/features/authentication/components/auth-panel"
 import { isFirebaseConfigured } from "@/lib/firebase/config"
 
 export const metadata: Metadata = {
-  title: "Entrar",
+  title: "Entrar ou criar conta",
   robots: { index: false, follow: false },
 }
 
@@ -51,22 +51,17 @@ export default function LoginPage() {
         <Reveal className="m-auto w-full max-w-sm space-y-8 py-10">
           <Logo size="md" className="lg:hidden" />
           <div className="space-y-2">
-            <h1 className="type-h2">Entrar no painel</h1>
+            <h1 className="type-h2">Sua conta</h1>
             <p className="type-small text-muted-foreground">
-              Use o e-mail e a senha fornecidos pela administração do jornal.
+              Entre com seu e-mail e senha, ou crie uma conta.
             </p>
           </div>
 
           {configured ? null : <SetupNotice />}
 
           <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-            <LoginForm disabled={!configured} />
+            <AuthPanel disabled={!configured} />
           </Suspense>
-
-          <p className="type-caption font-normal text-muted-foreground">
-            Não há cadastro público. Novos acessos são criados pela
-            administração.
-          </p>
         </Reveal>
       </main>
     </div>
