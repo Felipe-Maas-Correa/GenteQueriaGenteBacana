@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { editorias } from "@/lib/site"
+import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
 import {
@@ -84,6 +84,7 @@ function toInput(article?: Article): ArticleInput {
 
 export function ArticleForm({ article }: { article?: Article }) {
   const router = useRouter()
+  const { editorias } = useEditorias()
   const isEditing = Boolean(article)
   const [pending, startTransition] = useTransition()
   const [deleting, startDeleting] = useTransition()
@@ -119,7 +120,7 @@ export function ArticleForm({ article }: { article?: Article }) {
     }),
     ...values,
     title: values.title || "Título da notícia",
-    editoria: values.editoria || "cidade",
+    editoria: values.editoria || editorias[0]?.id || "",
   }
 
   const scheduled =
@@ -371,8 +372,11 @@ export function ArticleForm({ article }: { article?: Article }) {
                     </SelectTrigger>
                     <SelectContent>
                       {editorias.map((editoria) => (
-                        <SelectItem key={editoria.slug} value={editoria.slug}>
-                          {editoria.label}
+                        <SelectItem key={editoria.id} value={editoria.id}>
+                          {editoria.name}
+                          {editoria.in_menu ? null : (
+                            <span className="text-xs text-muted-foreground">(fora do menu)</span>
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -1,7 +1,8 @@
 import Link from "next/link"
 
 import { Logo } from "@/components/shared/logo"
-import { editorias, siteConfig } from "@/lib/site"
+import { FooterEditorias } from "@/components/layout/footer-editorias"
+import { siteConfig } from "@/lib/site"
 
 const linkClass =
   "rounded-sm text-sm text-sidebar-muted-foreground outline-none transition-colors hover:text-sidebar-foreground focus-visible:ring-3 focus-visible:ring-sidebar-ring/50"
@@ -25,15 +26,7 @@ export function SiteFooter() {
           <p className="type-overline text-sidebar-muted-foreground/70">
             Editorias
           </p>
-          <ul className="grid gap-2">
-            {editorias.map((editoria) => (
-              <li key={editoria.slug}>
-                <Link href={`/noticias#${editoria.slug}`} className={linkClass}>
-                  {editoria.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <FooterEditorias linkClass={linkClass} />
         </nav>
 
         <nav aria-label="Institucional" className="space-y-3">

@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/table"
 import { useAuth } from "@/features/authentication/auth-context"
 import { useAsync } from "@/hooks/use-async"
-import { editoriaLabel, editorias } from "@/lib/site"
+import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 import { formatDateTime, normalizeSearch } from "@/lib/utils/format"
 import { cardSizeLabels } from "@/lib/validations/article"
@@ -78,6 +78,7 @@ function SituationBadge({ article, situation }: { article: Article; situation: S
 
 export function ArticlesView() {
   const { status } = useAuth()
+  const { editorias, label } = useEditorias()
   const configured = status !== "unconfigured"
   const { data, loading, error, reload } = useAsync(
     () =>
@@ -217,8 +218,8 @@ export function ArticlesView() {
           <SelectContent>
             <SelectItem value="all">Todas as editorias</SelectItem>
             {editorias.map((item) => (
-              <SelectItem key={item.slug} value={item.slug}>
-                {item.label}
+              <SelectItem key={item.id} value={item.id}>
+                {item.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -298,7 +299,7 @@ export function ArticlesView() {
                   </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
-                  {editoriaLabel(article.editoria)}
+                  {label(article.editoria) || "—"}
                 </TableCell>
                 <TableCell>
                   <SituationBadge article={article} situation={situation} />

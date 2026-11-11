@@ -6,6 +6,7 @@ import {
   PaletteIcon,
   SettingsIcon,
   ShieldCheckIcon,
+  TagsIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react"
@@ -42,6 +43,7 @@ export const adminNavigation: AdminNavGroup[] = [
     label: "Redação",
     items: [
       { label: "Notícias", href: "/admin/noticias", icon: NewspaperIcon },
+      { label: "Editorias", href: "/admin/editorias", icon: TagsIcon },
       {
         label: "Página inicial",
         href: "/admin/pagina-inicial",
@@ -71,6 +73,7 @@ export const adminSegmentLabels: Record<string, string> = {
   nova: "Nova notícia",
   "pagina-inicial": "Página inicial",
   equipe: "Equipe",
+  editorias: "Editorias",
   "guia-de-estilo": "Guia de Estilo",
   configuracoes: "Configurações",
 }

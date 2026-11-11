@@ -1,17 +1,9 @@
 import { LogoMark } from "@/components/shared/logo"
 import { cn } from "@/lib/utils"
 
-/** Cor-base de cada editoria (tokens do Design System). */
-const editoriaTone: Record<string, string> = {
-  cidade: "var(--azul)",
-  comunidade: "var(--vermelho)",
-  cultura: "var(--chart-3)",
-  esporte: "var(--chart-4)",
-  opiniao: "var(--tinta-suave)",
-}
-
 type ArticleVisualProps = {
-  editoria: string
+  /** Cor CSS da editoria (definida no painel, em Editorias). */
+  tone: string
   className?: string
   /** Variação da composição, para que cartões vizinhos não fiquem idênticos. */
   variant?: 0 | 1 | 2
@@ -28,12 +20,10 @@ const markPosition = [
  * cadastrada. É decorativa.
  */
 export function ArticleVisual({
-  editoria,
+  tone,
   className,
   variant = 0,
 }: ArticleVisualProps) {
-  const tone = editoriaTone[editoria] ?? "var(--tinta-suave)"
-
   return (
     <div
       aria-hidden

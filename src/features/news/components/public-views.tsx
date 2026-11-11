@@ -8,7 +8,7 @@ import { Reveal, RevealGroup, RevealItem } from "@/components/shared/reveal"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAsync } from "@/hooks/use-async"
-import { editoriaLabel, editorias } from "@/lib/site"
+import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
 
@@ -83,6 +83,7 @@ export function HomeFeed() {
 
 export function NewsIndex() {
   const { data, loading, error, reload } = useAsync(listPublishedArticles, [])
+  const { editorias } = useEditorias()
 
   if (loading && !data) return <GridSkeleton />
   if (error) return <LoadError onRetry={reload} />
@@ -90,7 +91,7 @@ export function NewsIndex() {
   const sections = editorias
     .map((editoria) => ({
       ...editoria,
-      articles: (data ?? []).filter((a) => a.editoria === editoria.slug),
+      articles: (data ?? []).filter((a) => a.editoria === editoria.id),
     }))
     .filter((section) => section.articles.length > 0)
 
@@ -102,7 +103,7 @@ export function NewsIndex() {
     <div className="space-y-16 lg:space-y-20">
       {sections.map((section) => (
         <section
-          key={section.slug}
+          key={section.id}
           id={section.slug}
           aria-labelledby={`editoria-${section.slug}`}
           className="grid scroll-mt-24 gap-8 border-t-2 border-foreground pt-6 lg:grid-cols-12"
@@ -111,7 +112,7 @@ export function NewsIndex() {
             id={`editoria-${section.slug}`}
             className="type-h2 lg:sticky lg:top-[calc(var(--topbar-h)+2rem)] lg:col-span-3 lg:self-start"
           >
-            {section.label}
+            {section.name}
           </h2>
           <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:col-span-9">
             {section.articles.map((article, index) => (
@@ -162,6 +163,7 @@ function ArticleBody({ body }: { body: string }) {
 }
 
 export function ArticleReader({ slug }: { slug: string }) {
+  const { label } = useEditorias()
   const { data, loading, error, reload } = useAsync(
     () => getPublishedArticle(slug),
     [slug]
@@ -222,7 +224,7 @@ export function ArticleReader({ slug }: { slug: string }) {
             {article.author && article.published_at ? " · " : null}
             {article.published_at ? formatDateTime(article.published_at) : null}
             {!article.author && !article.published_at
-              ? editoriaLabel(article.editoria)
+              ? label(article.editoria)
               : null}
           </p>
         </Reveal>

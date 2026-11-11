@@ -1,7 +1,9 @@
+"use client"
+
 import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
-import { editoriaLabel } from "@/lib/site"
+import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 import type { Article, CardSize } from "@/types/database"
 
@@ -19,6 +21,7 @@ export function ArticleMeta({
   article: Article
   className?: string
 }) {
+  const { label } = useEditorias()
   return (
     <p className={cn("flex flex-wrap items-center gap-2", className)}>
       {article.kicker ? (
@@ -35,7 +38,7 @@ export function ArticleMeta({
         </Badge>
       ) : null}
       <span className="type-overline text-brand">
-        {editoriaLabel(article.editoria)}
+        {label(article.editoria)}
       </span>
     </p>
   )
@@ -53,6 +56,7 @@ export function ArticleImage({
   className?: string
   imgClassName?: string
 }) {
+  const { tone } = useEditorias()
   return (
     <div className={cn("relative overflow-hidden bg-muted", className)}>
       {article.image_url ? (
@@ -67,7 +71,7 @@ export function ArticleImage({
         />
       ) : (
         <ArticleVisual
-          editoria={article.editoria}
+          tone={tone(article.editoria)}
           variant={variant}
           className={cn("size-full", imgClassName)}
         />

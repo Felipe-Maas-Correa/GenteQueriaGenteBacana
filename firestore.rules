@@ -61,6 +61,12 @@ service cloud.firestore {
       allow read, create, update, delete: if isStaff();
     }
 
+    // Editorias (menu do site): qualquer visitante lê; só administradores editam.
+    match /editorias/{id} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     // Notícias: qualquer visitante lê as publicadas; a equipe lê e edita tudo.
     // Consultas públicas precisam filtrar por status == "published".
     match /articles/{id} {

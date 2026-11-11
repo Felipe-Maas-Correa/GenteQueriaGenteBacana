@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useAuth } from "@/features/authentication/auth-context"
 import { useAsync } from "@/hooks/use-async"
-import { editoriaLabel } from "@/lib/site"
+import { useEditorias } from "@/features/editorias/editorias-context"
 import type { Article } from "@/types/database"
 
 import { saveHomeLayout } from "../actions"
@@ -84,6 +84,7 @@ function HomeLayoutEditor({
     }),
     [articles]
   )
+  const { label } = useEditorias()
   const [home, setHome] = useState(initial.home)
   const [others, setOthers] = useState(initial.others)
   const [saving, startSaving] = useTransition()
@@ -166,7 +167,7 @@ function HomeLayoutEditor({
                     <div className="min-w-0 flex-1">
                       <p className="line-clamp-2 text-sm font-medium">{article.title}</p>
                       <p className="type-caption text-muted-foreground">
-                        {editoriaLabel(article.editoria)}
+                        {label(article.editoria)}
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-0.5">

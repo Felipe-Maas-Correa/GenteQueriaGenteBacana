@@ -16,7 +16,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { editorias } from "@/lib/site"
+import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 
 const navLinkClass =
@@ -51,6 +51,7 @@ export function SiteHeader() {
   const { scrollY } = useScroll()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const { menu } = useEditorias()
 
   useMotionValueEvent(scrollY, "change", (value) => {
     setScrolled(value > 24)
@@ -78,13 +79,13 @@ export function SiteHeader() {
         </Link>
 
         <nav aria-label="Editorias" className="hidden items-center gap-7 md:flex">
-          {editorias.map((editoria) => (
+          {menu.map((editoria) => (
             <Link
-              key={editoria.slug}
+              key={editoria.id}
               href={`/noticias#${editoria.slug}`}
               className={navLinkClass}
             >
-              {editoria.label}
+              {editoria.name}
             </Link>
           ))}
         </nav>
@@ -114,10 +115,10 @@ export function SiteHeader() {
                 Navegação pelas editorias do portal.
               </SheetDescription>
               <nav aria-label="Editorias" className="mt-2 grid">
-                {[{ slug: "", label: "Todas as notícias" }, ...editorias].map(
+                {[{ id: "todas", slug: "", name: "Todas as notícias" }, ...menu].map(
                   (editoria, index) => (
                     <motion.div
-                      key={editoria.slug}
+                      key={editoria.id}
                       initial={{ opacity: 0, x: 16 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.05 * index + 0.1 }}
@@ -129,7 +130,7 @@ export function SiteHeader() {
                         onClick={() => setMenuOpen(false)}
                         className="type-h2 block rounded-sm border-b py-3 outline-none transition-colors hover:text-brand focus-visible:ring-3 focus-visible:ring-ring/40"
                       >
-                        {editoria.label}
+                        {editoria.name}
                       </Link>
                     </motion.div>
                   )
