@@ -7,6 +7,7 @@ import {
   getDocs,
   query,
   serverTimestamp,
+  Timestamp,
   updateDoc,
   where,
   writeBatch,
@@ -47,7 +48,9 @@ export async function saveArticle(
       toFieldErrors(parsed.error.issues)
     )
   }
-  const data = parsed.data
+  const { publish_at, ...data } = parsed.data
+  // Data escolhida (agendamento ou data retroativa); vazia = agora.
+  const chosenDate = publish_at ? Timestamp.fromDate(new Date(publish_at)) : null
 
   try {
     if (await slugInUse(data.slug, id)) {
@@ -61,7 +64,8 @@ export async function saveArticle(
         ...data,
         // Novas notícias entram no topo da página inicial.
         home_order: -Date.now(),
-        published_at: data.status === "published" ? serverTimestamp() : null,
+        published_at:
+          data.status === "published" ? (chosenDate ?? serverTimestamp()) : chosenDate,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       })
@@ -75,7 +79,11 @@ export async function saveArticle(
       data.status === "published" && !current.data().published_at
     await updateDoc(docRef, {
       ...data,
-      ...(firstPublish ? { published_at: serverTimestamp() } : {}),
+      ...(chosenDate
+        ? { published_at: chosenDate }
+        : firstPublish
+          ? { published_at: serverTimestamp() }
+          : {}),
       updated_at: serverTimestamp(),
     })
     return { ok: true, message: "Alterações salvas.", data: { id } }

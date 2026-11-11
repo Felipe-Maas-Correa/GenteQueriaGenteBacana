@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAsync } from "@/hooks/use-async"
 import { editoriaLabel, editorias } from "@/lib/site"
+import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
+
+import { articleProseClass, bodyToHtml, sanitizeBody } from "../article-body"
 
 import {
   getPublishedArticle,
@@ -130,43 +133,31 @@ export function NewsIndex() {
 
 /* ── Página da notícia ──────────────────────────────────────── */
 
+/**
+ * Corpo da notícia: o HTML do editor passa pelo DOMPurify antes de ir para a
+ * tela, então nenhum script ou atributo perigoso é executado.
+ */
 function ArticleBody({ body }: { body: string }) {
-  const blocks = body
-    .split(/\n\s*\n/)
-    .map((block) => block.trim())
-    .filter(Boolean)
-  const leadIndex = blocks.findIndex((block) => !block.startsWith("## "))
+  const { data: html } = useAsync(() => sanitizeBody(bodyToHtml(body)), [body])
+
+  if (html === null) {
+    return (
+      <div className="mx-auto max-w-[42rem] space-y-4" aria-busy>
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-5 w-11/12" />
+        <Skeleton className="h-5 w-4/5" />
+      </div>
+    )
+  }
 
   return (
-    <div className="mx-auto max-w-[42rem] space-y-6">
-      {blocks.map((block, index) => {
-        if (block.startsWith("## ")) {
-          return (
-            <h2 key={index} className="type-h3 pt-4">
-              {block.slice(3)}
-            </h2>
-          )
-        }
-        const lead = index === leadIndex
-        return (
-          <p
-            key={index}
-            className={
-              lead
-                ? "type-body text-[1.1875rem] leading-relaxed first-letter:float-left first-letter:mr-3 first-letter:font-display first-letter:text-[4.25rem] first-letter:leading-[0.82] first-letter:font-medium"
-                : "type-body text-[1.0625rem] leading-relaxed text-foreground/90"
-            }
-          >
-            {block.split("\n").map((line, i) => (
-              <span key={i}>
-                {i > 0 ? <br /> : null}
-                {line}
-              </span>
-            ))}
-          </p>
-        )
-      })}
-    </div>
+    <div
+      className={cn(
+        articleProseClass,
+        "mx-auto max-w-[42rem] text-foreground/90 [&>p:first-of-type]:text-[1.1875rem] [&>p:first-of-type]:first-letter:float-left [&>p:first-of-type]:first-letter:mr-3 [&>p:first-of-type]:first-letter:font-display [&>p:first-of-type]:first-letter:text-[4.25rem] [&>p:first-of-type]:first-letter:leading-[0.82] [&>p:first-of-type]:first-letter:font-medium"
+      )}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   )
 }
 

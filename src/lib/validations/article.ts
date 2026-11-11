@@ -53,6 +53,16 @@ export const articleSchema = z.object({
     .trim()
     .max(240, "A legenda pode ter no máximo 240 caracteres."),
   status: z.enum(["draft", "published"]),
+  /**
+   * Data/hora de publicação (campo datetime-local, no fuso do navegador).
+   * Vazio = agora. No futuro = notícia agendada.
+   */
+  publish_at: z
+    .string()
+    .refine(
+      (value) => value === "" || !Number.isNaN(new Date(value).getTime()),
+      "Informe uma data e hora válidas."
+    ),
   on_home: z.boolean(),
   card_size: z.enum(CARD_SIZES),
   show_image: z.boolean(),
@@ -60,6 +70,14 @@ export const articleSchema = z.object({
 })
 
 export type ArticleInput = z.infer<typeof articleSchema>
+
+/** ISO → valor do campo datetime-local (no fuso do navegador). */
+export function isoToLocalInput(iso: string): string {
+  if (!iso) return ""
+  const date = new Date(iso)
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
 
 /** Gera um endereço amigável a partir do título. */
 export function slugify(text: string): string {

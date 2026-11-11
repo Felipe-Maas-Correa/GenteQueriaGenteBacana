@@ -44,6 +44,15 @@ export function mapArticle(id: string, data: Record<string, unknown>): Article {
 const byNewest = (a: Article, b: Article) =>
   (b.published_at || b.updated_at).localeCompare(a.published_at || a.updated_at)
 
+/** Publicada com data futura: só aparece no site quando chegar a hora. */
+export function isScheduled(article: Article, now = Date.now()): boolean {
+  return (
+    article.status === "published" &&
+    Boolean(article.published_at) &&
+    new Date(article.published_at).getTime() > now
+  )
+}
+
 export const byHomeOrder = (a: Article, b: Article) =>
   a.home_order - b.home_order || byNewest(a, b)
 
@@ -76,7 +85,11 @@ async function publishedQuery(): Promise<Article[]> {
       query(collection(getDb(), "articles"), where("status", "==", "published"))
     )
   )
-  return snapshot.docs.map((d) => mapArticle(d.id, d.data())).sort(byNewest)
+  const now = Date.now()
+  return snapshot.docs
+    .map((d) => mapArticle(d.id, d.data()))
+    .filter((article) => !isScheduled(article, now))
+    .sort(byNewest)
 }
 
 /** Todas as notícias publicadas, da mais recente para a mais antiga. */
@@ -107,6 +120,7 @@ export async function getPublishedArticle(
   const found = snapshot.docs[0]
   if (!found) return { article: null, related: [] }
   const article = mapArticle(found.id, found.data())
+  if (isScheduled(article)) return { article: null, related: [] }
   const others = await publishedQuery().catch(() => [])
   return {
     article,

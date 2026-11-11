@@ -30,14 +30,17 @@ import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
 import {
   articleSchema,
+  isoToLocalInput,
   slugify,
   type ArticleInput,
 } from "@/lib/validations/article"
 import type { Article } from "@/types/database"
 
 import { deleteArticle, saveArticle, uploadArticleImage } from "../actions"
+import { isEmptyBody } from "../article-body"
 import { ArticleCard, articleHref } from "./article-card"
 import { CardSizePicker, SwitchRow } from "./card-controls"
+import { RichTextEditor } from "./rich-text-editor"
 
 const LIST_PATH = "/admin/noticias"
 
@@ -71,6 +74,7 @@ function toInput(article?: Article): ArticleInput {
     image_url: article?.image_url ?? "",
     image_caption: article?.image_caption ?? "",
     status: article?.status ?? "draft",
+    publish_at: isoToLocalInput(article?.published_at ?? ""),
     on_home: article?.on_home ?? true,
     card_size: article?.card_size ?? "small",
     show_image: article?.show_image ?? true,
@@ -88,6 +92,8 @@ export function ArticleForm({ article }: { article?: Article }) {
   // Enquanto o endereço não for editado à mão, acompanha o título.
   const [slugTouched, setSlugTouched] = useState(isEditing)
   const fileInput = useRef<HTMLInputElement>(null)
+  // Referência de "agora" para decidir se a data escolhida é um agendamento.
+  const [openedAt] = useState(() => Date.now())
 
   const {
     register,
@@ -116,15 +122,28 @@ export function ArticleForm({ article }: { article?: Article }) {
     editoria: values.editoria || "cidade",
   }
 
+  const scheduled =
+    Boolean(values.publish_at) && new Date(values.publish_at).getTime() > openedAt
+  const statusLabel =
+    values.status === "draft"
+      ? "Rascunho"
+      : scheduled
+        ? `Agendada para ${formatDateTime(new Date(values.publish_at).toISOString())}`
+        : "Publicada"
+
   const submit = (status: ArticleInput["status"]) =>
     handleSubmit((input) => {
       startTransition(async () => {
         const result = await saveArticle(article?.id ?? null, { ...input, status })
         if (result.ok) {
           toast.success(
-            status === "published" && article?.status !== "published"
-              ? "Notícia publicada."
-              : result.message
+            status === "published" &&
+              input.publish_at &&
+              new Date(input.publish_at).getTime() > Date.now()
+              ? "Notícia agendada."
+              : status === "published" && article?.status !== "published"
+                ? "Notícia publicada."
+                : result.message
           )
           reset({ ...input, status })
           if (!article && result.data) {
@@ -216,14 +235,21 @@ export function ArticleForm({ article }: { article?: Article }) {
           <Field
             label="Texto da notícia"
             error={errors.body?.message}
-            hint='Separe os parágrafos com uma linha em branco. Comece uma linha com "## " para criar um intertítulo.'
+            hint="Use a barra para negrito, intertítulos, citações, listas, links e fotos no meio do texto."
           >
             {(field) => (
-              <Textarea
-                rows={18}
-                className="font-serif text-base leading-relaxed"
-                {...field}
-                {...register("body")}
+              <Controller
+                control={control}
+                name="body"
+                render={({ field: { value, onChange } }) => (
+                  <RichTextEditor
+                    id={field.id}
+                    value={value}
+                    onChange={(html) => onChange(isEmptyBody(html) ? "" : html)}
+                    invalid={field["aria-invalid"]}
+                    describedBy={field["aria-describedby"]}
+                  />
+                )}
               />
             )}
           </Field>
@@ -295,12 +321,43 @@ export function ArticleForm({ article }: { article?: Article }) {
             <span
               className={cn(
                 "font-medium",
-                values.status === "published" ? "text-success" : "text-muted-foreground"
+                scheduled && values.status === "published"
+                  ? "text-info"
+                  : values.status === "published"
+                    ? "text-success"
+                    : "text-muted-foreground"
               )}
             >
-              {values.status === "published" ? "Publicada" : "Rascunho"}
+              {statusLabel}
             </span>
           </p>
+
+          <Field
+            label="Data e hora de publicação"
+            error={errors.publish_at?.message}
+            hint={
+              scheduled
+                ? "Data no futuro: a notícia entra no ar sozinha nesse horário."
+                : "Vazio = publica na hora. Escolha uma data futura para agendar."
+            }
+          >
+            {(field) => (
+              <div className="flex gap-2">
+                <Input type="datetime-local" {...field} {...register("publish_at")} />
+                {values.publish_at ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Limpar data"
+                    onClick={() => setValue("publish_at", "", { shouldDirty: true })}
+                  >
+                    <XIcon aria-hidden />
+                  </Button>
+                ) : null}
+              </div>
+            )}
+          </Field>
 
           <Field label="Editoria" required error={errors.editoria?.message}>
             {(field) => (
@@ -477,7 +534,7 @@ export function ArticleForm({ article }: { article?: Article }) {
                 disabled={pending || deleting}
                 onClick={() => submit("draft")}
               >
-                Despublicar
+                {scheduled ? "Cancelar agendamento" : "Despublicar"}
               </Button>
               <Button
                 type="button"
@@ -505,7 +562,7 @@ export function ArticleForm({ article }: { article?: Article }) {
                 disabled={deleting}
                 onClick={() => submit("published")}
               >
-                Publicar
+                {scheduled ? "Agendar" : "Publicar"}
               </Button>
             </>
           )}
