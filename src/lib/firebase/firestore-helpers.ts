@@ -7,12 +7,27 @@ export function tsToISO(value: unknown): string {
   return ""
 }
 
+/**
+ * O SDK do Firestore tenta reconectar indefinidamente quando o banco não
+ * existe ou está fora do ar. Use em operações que não podem travar a tela.
+ */
+export function withTimeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(Object.assign(new Error("timeout"), { code: "timeout" })), ms)
+    ),
+  ])
+}
+
 /** Traduz erros comuns do Firestore em mensagens para o usuário. */
 export function firestoreErrorMessage(error: unknown): string {
   const code = (error as { code?: string })?.code
   switch (code) {
     case "permission-denied":
       return "Você não tem permissão para realizar esta ação."
+    case "timeout":
+      return "O banco de dados não respondeu. Verifique se o Firestore foi criado no projeto Firebase."
     case "unavailable":
       return "Serviço indisponível no momento. Tente novamente."
     case "failed-precondition":

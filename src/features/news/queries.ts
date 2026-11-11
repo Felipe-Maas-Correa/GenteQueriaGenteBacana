@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore"
 
 import { getDb, getFirebase } from "@/lib/firebase/client"
-import { tsToISO } from "@/lib/firebase/firestore-helpers"
+import { tsToISO, withTimeout } from "@/lib/firebase/firestore-helpers"
 import type { Article } from "@/types/database"
 
 import { demoAsArticles } from "./demo-articles"
@@ -71,21 +71,6 @@ export async function getArticle(id: string): Promise<Article | null> {
  */
 
 export type PublicFeed = { articles: Article[]; demo: boolean }
-
-/**
- * O SDK do Firestore fica tentando reconectar indefinidamente quando o banco
- * não existe ou está fora do ar; o leitor não deve ver um carregamento eterno.
- */
-const PUBLIC_TIMEOUT_MS = 8000
-
-function withTimeout<T>(promise: Promise<T>): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), PUBLIC_TIMEOUT_MS)
-    ),
-  ])
-}
 
 async function publishedQuery(): Promise<Article[]> {
   const snapshot = await withTimeout(

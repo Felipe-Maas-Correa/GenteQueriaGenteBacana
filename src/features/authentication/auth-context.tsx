@@ -25,6 +25,7 @@ import {
 } from "firebase/firestore"
 
 import { getFirebase } from "@/lib/firebase/client"
+import { withTimeout } from "@/lib/firebase/firestore-helpers"
 import { actionError, type ActionResult } from "@/lib/utils/action-result"
 import {
   loginSchema,
@@ -135,9 +136,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
       try {
-        await ensureProfile(nextUser)
+        await withTimeout(ensureProfile(nextUser))
       } catch {
-        // Regras podem recusar a criação em cenários atípicos; segue com pending.
+        // Banco indisponível ou regras recusando a criação: segue com pending.
       }
       setStatus("authenticated")
     })
@@ -196,8 +197,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           parsed.data.password
         )
         await updateProfile(created, { displayName: parsed.data.name })
-        // O perfil nasce como "pending"; aqui só garantimos o nome.
-        await setDoc(
+        // O perfil nasce como "pending"; aqui só garantimos o nome. Com o
+        // banco fora do ar, a conta já existe no Auth e o perfil é criado
+        // no próximo login — por isso o tempo-limite não bloqueia o cadastro.
+        await withTimeout(setDoc(
           doc(firebase.db, "profiles", created.uid),
           {
             name: parsed.data.name,
@@ -207,7 +210,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             updated_at: serverTimestamp(),
           },
           { merge: true }
-        ).catch(() => {})
+        )).catch(() => {})
         return { ok: true, message: "Conta criada." }
       } catch (error) {
         const code = (error as { code?: string }).code
