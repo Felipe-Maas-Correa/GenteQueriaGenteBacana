@@ -51,7 +51,8 @@ export const colorGroups: ColorGroup[] = [
     tokens: [
       { variable: "--card", name: "Cartão", utility: "bg-card", usage: "Cartões, campos e painéis elevados.", on: "--card-foreground" },
       { variable: "--muted", name: "Cinza claro", utility: "bg-muted", usage: "Faixas, cabeçalhos de tabela e estados de hover.", on: "--muted-foreground" },
-      { variable: "--sidebar", name: "Sidebar", utility: "bg-sidebar", usage: "Navegação do painel e rodapé do portal.", on: "--sidebar-foreground" },
+      { variable: "--sidebar", name: "Sidebar", utility: "bg-sidebar", usage: "Navegação lateral do painel (clara no tema claro).", on: "--sidebar-foreground" },
+      { variable: "--contraste", name: "Contraste", utility: "bg-contraste", usage: "Faixas escuras: rodapé do portal e lateral do login.", on: "--contraste-foreground" },
     ],
   },
   {

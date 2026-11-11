@@ -20,21 +20,21 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-dvh flex-1 lg:grid-cols-[1.1fr_1fr]">
-      <aside className="relative hidden overflow-hidden bg-sidebar p-12 text-sidebar-foreground lg:flex lg:flex-col lg:justify-between">
+      <aside className="relative hidden overflow-hidden bg-contraste p-12 text-contraste-foreground lg:flex lg:flex-col lg:justify-between">
         <LogoMark className="pointer-events-none absolute -right-24 -bottom-20 h-[28rem] opacity-[0.07]" />
         <Logo size="md" />
         <Reveal className="relative max-w-lg space-y-5">
-          <p className="type-overline text-sidebar-primary">Painel da redação</p>
-          <p className="type-h1 text-sidebar-foreground">
+          <p className="type-overline text-contraste-primary">Painel da redação</p>
+          <p className="type-h1 text-contraste-foreground">
             Quem faz o jornal chegar em cada casa{" "}
-            <em className="font-normal text-sidebar-primary">começa por aqui.</em>
+            <em className="font-normal text-contraste-primary">começa por aqui.</em>
           </p>
-          <p className="type-body text-sidebar-muted-foreground">
+          <p className="type-body text-contraste-muted-foreground">
             Assinantes, áreas de entrega e etiquetas — organizados em um só
             lugar.
           </p>
         </Reveal>
-        <p className="type-caption relative font-normal text-sidebar-muted-foreground">
+        <p className="type-caption relative font-normal text-contraste-muted-foreground">
           Acesso restrito à equipe do jornal.
         </p>
       </aside>

@@ -31,7 +31,7 @@ function NavLink({
 }) {
   const Icon = item.icon
   const base =
-    "relative flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium outline-none transition-colors duration-(--duration-fast)"
+    "relative flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium outline-none transition-colors duration-(--duration-fast)"
 
   if (item.comingSoon) {
     return (
@@ -57,17 +57,17 @@ function NavLink({
         base,
         "focus-visible:ring-3 focus-visible:ring-sidebar-ring/50",
         active
-          ? "text-sidebar-accent-foreground"
+          ? "font-semibold text-sidebar-accent-foreground [&_svg]:text-sidebar-primary"
           : "text-sidebar-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
       )}
     >
       {active ? (
         <motion.span
           layoutId={indicatorId}
-          className="absolute inset-0 rounded-lg bg-sidebar-accent"
+          className="absolute inset-0 rounded-md bg-sidebar-accent"
           transition={{ type: "spring", stiffness: 420, damping: 36 }}
         >
-          <span className="absolute top-2.5 bottom-2.5 left-0 w-0.5 rounded-full bg-sidebar-primary" />
+          <span className="absolute top-2 bottom-2 left-0 w-[3px] rounded-full bg-sidebar-primary" />
         </motion.span>
       ) : null}
       <Icon className="relative size-4 shrink-0" aria-hidden />
@@ -88,7 +88,7 @@ export function AdminSidebarContent({
   const pathname = usePathname()
 
   return (
-    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+    <div className="flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-(--topbar-h) shrink-0 items-center border-b border-sidebar-border px-5">
         <Link
           href="/admin/dashboard"
@@ -102,11 +102,11 @@ export function AdminSidebarContent({
 
       <nav
         aria-label="Navegação do painel"
-        className="flex-1 space-y-6 overflow-y-auto px-3 py-5"
+        className="flex-1 space-y-5 overflow-y-auto px-3 py-4 [scrollbar-width:thin]"
       >
         {adminNavigation.map((group) => (
           <div key={group.label} className="space-y-1">
-            <p className="type-overline px-3 pb-1 text-sidebar-muted-foreground/70">
+            <p className="type-overline px-3 pb-1 text-sidebar-muted-foreground">
               {group.label}
             </p>
             {group.items.map((item) => (
@@ -128,7 +128,7 @@ export function AdminSidebarContent({
         <Link
           href="/"
           onClick={onNavigate}
-          className="flex h-10 items-center justify-between rounded-lg px-3 text-sm text-sidebar-muted-foreground outline-none transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:ring-3 focus-visible:ring-sidebar-ring/50"
+          className="flex h-9 items-center justify-between rounded-md px-3 text-sm text-sidebar-muted-foreground outline-none transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:ring-3 focus-visible:ring-sidebar-ring/50"
         >
           Ver o portal
           <ArrowUpRightIcon className="size-4" aria-hidden />
