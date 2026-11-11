@@ -50,6 +50,40 @@ type TableRowMap = {
   areas: Area
   subscribers: Subscriber
   profiles: Profile
+  articles: Article
 }
 
 export type Tables<T extends keyof TableRowMap> = TableRowMap[T]
+
+export type ArticleStatus = "draft" | "published"
+/** Tamanho do cartão na página inicial. */
+export type CardSize = "hero" | "large" | "small"
+/** Tom do chapéu (rótulo acima do título). */
+export type KickerTone = "default" | "urgent"
+
+export type Article = {
+  id: string
+  slug: string
+  title: string
+  /** Linha fina: resumo exibido no cartão e abaixo do título. */
+  excerpt: string
+  /** Corpo em texto simples; parágrafos separados por linha em branco, "## " para intertítulos. */
+  body: string
+  editoria: string
+  author: string
+  /** Chapéu: rótulo curto acima do título (ex.: "Urgente", "Exclusivo"). */
+  kicker: string
+  kicker_tone: KickerTone
+  image_url: string
+  image_caption: string
+  status: ArticleStatus
+  /** Aparência e posição do cartão na página inicial. */
+  on_home: boolean
+  home_order: number
+  card_size: CardSize
+  show_image: boolean
+  show_excerpt: boolean
+  published_at: string
+  created_at: string
+  updated_at: string
+}

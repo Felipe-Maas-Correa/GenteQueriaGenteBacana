@@ -54,7 +54,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { ArticleCard } from "@/features/news/components/article-card"
-import { demoArticles } from "@/features/news/demo-articles"
+import { demoAsArticles } from "@/features/news/demo-articles"
 import {
   ChoiceControlsDemo,
   FieldsDemo,
@@ -396,10 +396,10 @@ export default function StyleGuidePage() {
           <Showcase
             title="Card de notícia"
             description="Usado no portal (conteúdo ilustrativo)."
-            usage={`<ArticleCard article={article} layout="standard" />`}
+            usage={`<ArticleCard article={article} size="small" showImage />`}
             contentClassName="block"
           >
-            <ArticleCard article={demoArticles[2]} className="max-w-sm" />
+            <ArticleCard article={demoAsArticles()[2]} className="max-w-sm" />
           </Showcase>
 
           <Showcase

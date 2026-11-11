@@ -1,9 +1,8 @@
 import { LogoMark } from "@/components/shared/logo"
-import type { EditoriaSlug } from "@/lib/site"
 import { cn } from "@/lib/utils"
 
 /** Cor-base de cada editoria (tokens do Design System). */
-const editoriaTone: Record<EditoriaSlug, string> = {
+const editoriaTone: Record<string, string> = {
   cidade: "var(--azul)",
   comunidade: "var(--vermelho)",
   cultura: "var(--chart-3)",
@@ -12,7 +11,7 @@ const editoriaTone: Record<EditoriaSlug, string> = {
 }
 
 type ArticleVisualProps = {
-  editoria: EditoriaSlug
+  editoria: string
   className?: string
   /** Variação da composição, para que cartões vizinhos não fiquem idênticos. */
   variant?: 0 | 1 | 2
@@ -25,16 +24,15 @@ const markPosition = [
 ] as const
 
 /**
- * Arte gerada que ocupa o lugar das fotografias enquanto o módulo de notícias
- * (e o Supabase Storage) não está ativo. É decorativa: quando houver fotos
- * reais, este componente dá lugar a `next/image`.
+ * Arte gerada que ocupa o lugar da foto quando a notícia não tem imagem
+ * cadastrada. É decorativa.
  */
 export function ArticleVisual({
   editoria,
   className,
   variant = 0,
 }: ArticleVisualProps) {
-  const tone = editoriaTone[editoria]
+  const tone = editoriaTone[editoria] ?? "var(--tinta-suave)"
 
   return (
     <div

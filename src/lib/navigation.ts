@@ -1,9 +1,11 @@
 import {
   LayoutDashboardIcon,
+  LayoutTemplateIcon,
   MapPinIcon,
   NewspaperIcon,
   PaletteIcon,
   SettingsIcon,
+  ShieldCheckIcon,
   UsersIcon,
   type LucideIcon,
 } from "lucide-react"
@@ -39,17 +41,18 @@ export const adminNavigation: AdminNavGroup[] = [
   {
     label: "Redação",
     items: [
+      { label: "Notícias", href: "/admin/noticias", icon: NewspaperIcon },
       {
-        label: "Notícias",
-        href: "/admin/noticias",
-        icon: NewspaperIcon,
-        comingSoon: true,
+        label: "Página inicial",
+        href: "/admin/pagina-inicial",
+        icon: LayoutTemplateIcon,
       },
     ],
   },
   {
     label: "Sistema",
     items: [
+      { label: "Equipe", href: "/admin/equipe", icon: ShieldCheckIcon },
       { label: "Guia de Estilo", href: "/admin/guia-de-estilo", icon: PaletteIcon },
       { label: "Configurações", href: "/admin/configuracoes", icon: SettingsIcon },
     ],
@@ -64,6 +67,10 @@ export const adminSegmentLabels: Record<string, string> = {
   novo: "Novo assinante",
   etiquetas: "Etiquetas",
   areas: "Áreas",
+  noticias: "Notícias",
+  nova: "Nova notícia",
+  "pagina-inicial": "Página inicial",
+  equipe: "Equipe",
   "guia-de-estilo": "Guia de Estilo",
   configuracoes: "Configurações",
 }

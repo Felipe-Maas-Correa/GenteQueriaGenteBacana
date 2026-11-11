@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// Regras do Firebase Storage — fotos das notícias.
+// Qualquer pessoa vê as fotos; somente a equipe (admin/editor) envia ou apaga.
+// O papel é lido do Firestore (coleção profiles).
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isStaff() {
+      return request.auth != null
+        && firestore.get(/databases/(default)/documents/profiles/$(request.auth.uid)).data.role in ['admin', 'editor'];
+    }
+
+    match /articles/{file} {
+      allow read: if true;
+      allow write: if isStaff()
+                   && (request.resource == null
+                       || (request.resource.size < 8 * 1024 * 1024
+                           && request.resource.contentType.matches('image/.*')));
+    }
+  }
+}

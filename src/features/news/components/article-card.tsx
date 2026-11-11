@@ -1,106 +1,203 @@
 import Link from "next/link"
-import { ArrowUpRightIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { editoriaLabel } from "@/lib/site"
 import { cn } from "@/lib/utils"
+import type { Article, CardSize } from "@/types/database"
 
-import type { DemoArticle } from "../demo-articles"
 import { ArticleVisual } from "./article-visual"
 
+export function articleHref(article: Pick<Article, "slug">) {
+  return `/noticias/${article.slug}`
+}
+
+/** Chapéu (rótulo editorial) + editoria. */
 export function ArticleMeta({
   article,
   className,
 }: {
-  article: DemoArticle
+  article: Article
   className?: string
 }) {
   return (
     <p className={cn("flex flex-wrap items-center gap-2", className)}>
-      <Badge variant="brand" shape="tag">
+      {article.kicker ? (
+        <Badge
+          variant={article.kicker_tone === "urgent" ? "support" : "brand"}
+          shape="tag"
+          className={
+            article.kicker_tone === "urgent"
+              ? "bg-support text-support-foreground"
+              : undefined
+          }
+        >
+          {article.kicker}
+        </Badge>
+      ) : null}
+      <span className="type-overline text-brand">
         {editoriaLabel(article.editoria)}
-      </Badge>
-      <span className="type-overline text-muted-foreground">
-        Exemplo · {article.readingMinutes} min de leitura
       </span>
     </p>
   )
 }
 
+/** Foto da notícia; sem foto cadastrada, usa a arte gerada da editoria. */
+export function ArticleImage({
+  article,
+  variant = 0,
+  className,
+  imgClassName,
+}: {
+  article: Article
+  variant?: 0 | 1 | 2
+  className?: string
+  imgClassName?: string
+}) {
+  return (
+    <div className={cn("relative overflow-hidden bg-muted", className)}>
+      {article.image_url ? (
+        // Fotos vêm do Firebase Storage ou de endereços externos colados no
+        // painel; <img> evita configurar cada domínio no next/image.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={article.image_url}
+          alt={article.image_caption || ""}
+          loading="lazy"
+          className={cn("size-full object-cover", imgClassName)}
+        />
+      ) : (
+        <ArticleVisual
+          editoria={article.editoria}
+          variant={variant}
+          className={cn("size-full", imgClassName)}
+        />
+      )}
+    </div>
+  )
+}
+
+const titleClass: Record<CardSize, string> = {
+  hero: "type-hero",
+  large: "type-h1",
+  small: "type-h3",
+}
+
 type ArticleCardProps = {
-  article: DemoArticle
-  /**
-   * `feature` = imagem grande e título maior; `standard` = cartão de grade;
-   * `compact` = só texto, para listas.
-   */
-  layout?: "feature" | "standard" | "compact"
+  article: Article
+  /** Por padrão, usa a configuração salva na própria notícia. */
+  size?: CardSize
+  showImage?: boolean
+  showExcerpt?: boolean
   variant?: 0 | 1 | 2
   className?: string
 }
 
-/** Cartão de notícia do portal. O link cobre o cartão inteiro. */
+/**
+ * Cartão de notícia. Tamanho, foto e linha fina são definidos pelo editor no
+ * painel. O link cobre o cartão inteiro e leva à página da notícia.
+ */
 export function ArticleCard({
   article,
-  layout = "standard",
+  size = article.card_size,
+  showImage = article.show_image,
+  showExcerpt = article.show_excerpt,
   variant = 0,
   className,
 }: ArticleCardProps) {
-  const href = `/noticias/${article.slug}`
-
-  if (layout === "compact") {
-    return (
-      <article className={cn("group/card relative py-5", className)}>
-        <ArticleMeta article={article} />
-        <h3 className="type-h3 mt-2.5">
-          <Link
-            href={href}
-            className="rounded-sm outline-none after:absolute after:inset-0 focus-visible:ring-3 focus-visible:ring-ring/40"
-          >
-            <span className="bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_1px] bg-[position:0_100%] bg-no-repeat transition-[background-size] duration-(--duration-slow) ease-emphasized group-hover/card:bg-[length:100%_1px]">
-              {article.title}
-            </span>
-          </Link>
-        </h3>
-      </article>
-    )
-  }
-
-  const feature = layout === "feature"
+  const hero = size === "hero"
+  const withImage = showImage
 
   return (
-    <article className={cn("group/card relative flex flex-col", className)}>
-      <div
-        className={cn(
-          "relative overflow-hidden rounded-xl",
-          feature ? "aspect-[4/3] sm:aspect-[16/10]" : "aspect-[3/2]"
-        )}
-      >
-        <ArticleVisual
-          editoria={article.editoria}
+    <article
+      className={cn(
+        "group/card relative grid content-start gap-4",
+        hero && withImage && "lg:grid-cols-12 lg:items-center lg:gap-10",
+        className
+      )}
+    >
+      {withImage ? (
+        <ArticleImage
+          article={article}
           variant={variant}
-          className="size-full transition-transform duration-[900ms] ease-emphasized group-hover/card:scale-[1.04]"
+          className={cn(
+            "rounded-sm",
+            hero
+              ? "aspect-[16/10] lg:order-2 lg:col-span-7"
+              : size === "large"
+                ? "aspect-[16/9]"
+                : "aspect-[3/2]"
+          )}
+          imgClassName="transition-transform duration-[900ms] ease-emphasized group-hover/card:scale-[1.03]"
         />
-        <span className="absolute right-3 bottom-3 grid size-10 translate-y-2 place-items-center rounded-full bg-background text-foreground opacity-0 shadow-md transition-[opacity,transform] duration-(--duration-base) ease-emphasized group-hover/card:translate-y-0 group-hover/card:opacity-100">
-          <ArrowUpRightIcon className="size-4" aria-hidden />
-        </span>
-      </div>
-      <ArticleMeta article={article} className="mt-4" />
-      <h3 className={cn("mt-2.5", feature ? "type-h2" : "type-h3")}>
-        <Link
-          href={href}
-          className="rounded-sm outline-none after:absolute after:inset-0 focus-visible:ring-3 focus-visible:ring-ring/40"
+      ) : null}
+
+      <div className={cn("min-w-0", hero && withImage && "lg:col-span-5")}>
+        <ArticleMeta article={article} />
+        <h3
+          className={cn(
+            "mt-2.5 text-balance",
+            hero && withImage ? "type-h1 lg:text-[3.25rem]" : titleClass[size]
+          )}
         >
-          {article.title}
-        </Link>
-      </h3>
-      <p
-        className={cn(
-          "mt-2 text-muted-foreground",
-          feature ? "type-body" : "type-small"
-        )}
-      >
-        {article.excerpt}
-      </p>
+          <Link
+            href={articleHref(article)}
+            className="rounded-sm outline-none transition-colors duration-(--duration-base) after:absolute after:inset-0 group-hover/card:text-brand focus-visible:ring-3 focus-visible:ring-ring/40"
+          >
+            {article.title}
+          </Link>
+        </h3>
+        {showExcerpt && article.excerpt ? (
+          <p
+            className={cn(
+              "mt-3 text-muted-foreground",
+              hero ? "type-lead max-w-2xl" : size === "large" ? "type-body" : "type-small"
+            )}
+          >
+            {article.excerpt}
+          </p>
+        ) : null}
+      </div>
     </article>
+  )
+}
+
+const spanClass: Record<CardSize, string> = {
+  hero: "md:col-span-6 lg:col-span-12",
+  large: "md:col-span-6 lg:col-span-8",
+  small: "md:col-span-3 lg:col-span-4",
+}
+
+/**
+ * Grade da página inicial: cada cartão ocupa a largura do seu tamanho e a
+ * grade preenche os espaços livres (`dense`). Usada no site e na prévia do
+ * editor de página inicial.
+ */
+export function HomeGrid({
+  articles,
+  className,
+}: {
+  articles: Article[]
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        "grid grid-flow-row-dense gap-x-8 gap-y-10 md:grid-cols-6 lg:grid-cols-12",
+        className
+      )}
+    >
+      {articles.map((article, index) => (
+        <div
+          key={article.id}
+          className={cn(
+            spanClass[article.card_size],
+            "border-t pt-5",
+            article.card_size === "hero" && "border-t-0 pt-0 pb-4"
+          )}
+        >
+          <ArticleCard article={article} variant={(index % 3) as 0 | 1 | 2} />
+        </div>
+      ))}
+    </div>
   )
 }

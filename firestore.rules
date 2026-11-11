@@ -58,5 +58,12 @@ service cloud.firestore {
     match /subscribers/{id} {
       allow read, create, update, delete: if isStaff();
     }
+
+    // Notícias: qualquer visitante lê as publicadas; a equipe lê e edita tudo.
+    // Consultas públicas precisam filtrar por status == "published".
+    match /articles/{id} {
+      allow read: if resource.data.status == 'published' || isStaff();
+      allow create, update, delete: if isStaff();
+    }
   }
 }

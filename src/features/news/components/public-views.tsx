@@ -1,0 +1,281 @@
+"use client"
+
+import Link from "next/link"
+import { ArrowLeftIcon, InfoIcon, SearchXIcon } from "lucide-react"
+
+import { EmptyState } from "@/components/shared/empty-state"
+import { Reveal, RevealGroup, RevealItem } from "@/components/shared/reveal"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useAsync } from "@/hooks/use-async"
+import { editoriaLabel, editorias } from "@/lib/site"
+import { formatDateTime } from "@/lib/utils/format"
+
+import {
+  getPublishedArticle,
+  listHomeArticles,
+  listPublishedArticles,
+} from "../queries"
+import { ArticleCard, ArticleImage, ArticleMeta, HomeGrid } from "./article-card"
+
+function DemoNotice() {
+  return (
+    <p className="type-caption flex items-center gap-2 rounded-sm bg-brand-soft px-3 py-2 text-foreground">
+      <InfoIcon className="size-3.5 shrink-0 text-brand" aria-hidden />
+      Conteúdo de exemplo — as notícias publicadas no painel aparecem aqui.
+    </p>
+  )
+}
+
+function GridSkeleton() {
+  return (
+    <div className="grid gap-8 md:grid-cols-3" aria-busy aria-label="Carregando notícias">
+      <Skeleton className="aspect-[16/7] md:col-span-3" />
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="space-y-3">
+          <Skeleton className="aspect-[3/2]" />
+          <Skeleton className="h-5 w-4/5" />
+          <Skeleton className="h-4 w-3/5" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function LoadError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="py-16 text-center">
+      <p className="text-muted-foreground">Não foi possível carregar as notícias.</p>
+      <Button variant="outline" className="mt-4" onClick={onRetry}>
+        Tentar novamente
+      </Button>
+    </div>
+  )
+}
+
+/* ── Página inicial ─────────────────────────────────────────── */
+
+export function HomeFeed() {
+  const { data, loading, error, reload } = useAsync(listHomeArticles, [])
+
+  return (
+    <section className="page-container pt-8 pb-16 sm:pt-10 lg:pb-24">
+      {data?.demo ? <DemoNotice /> : null}
+      <div className="mt-6">
+        {loading && !data ? (
+          <GridSkeleton />
+        ) : error ? (
+          <LoadError onRetry={reload} />
+        ) : data?.articles.length ? (
+          <HomeGrid articles={data.articles} />
+        ) : (
+          <p className="py-16 text-center text-muted-foreground">
+            Nenhuma notícia na página inicial no momento.
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/* ── Índice de notícias ─────────────────────────────────────── */
+
+export function NewsIndex() {
+  const { data, loading, error, reload } = useAsync(listPublishedArticles, [])
+
+  if (loading && !data) return <GridSkeleton />
+  if (error) return <LoadError onRetry={reload} />
+
+  const sections = editorias
+    .map((editoria) => ({
+      ...editoria,
+      articles: (data?.articles ?? []).filter((a) => a.editoria === editoria.slug),
+    }))
+    .filter((section) => section.articles.length > 0)
+
+  return (
+    <div className="space-y-16 lg:space-y-20">
+      {data?.demo ? <DemoNotice /> : null}
+      {sections.map((section) => (
+        <section
+          key={section.slug}
+          id={section.slug}
+          aria-labelledby={`editoria-${section.slug}`}
+          className="grid scroll-mt-24 gap-8 border-t-2 border-foreground pt-6 lg:grid-cols-12"
+        >
+          <h2
+            id={`editoria-${section.slug}`}
+            className="type-h2 lg:sticky lg:top-[calc(var(--topbar-h)+2rem)] lg:col-span-3 lg:self-start"
+          >
+            {section.label}
+          </h2>
+          <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:col-span-9">
+            {section.articles.map((article, index) => (
+              <ArticleCard
+                key={article.id}
+                article={article}
+                size="small"
+                showImage
+                showExcerpt
+                variant={(index % 3) as 0 | 1 | 2}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+/* ── Página da notícia ──────────────────────────────────────── */
+
+function ArticleBody({ body }: { body: string }) {
+  const blocks = body
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+  const leadIndex = blocks.findIndex((block) => !block.startsWith("## "))
+
+  return (
+    <div className="mx-auto max-w-[42rem] space-y-6">
+      {blocks.map((block, index) => {
+        if (block.startsWith("## ")) {
+          return (
+            <h2 key={index} className="type-h3 pt-4">
+              {block.slice(3)}
+            </h2>
+          )
+        }
+        const lead = index === leadIndex
+        return (
+          <p
+            key={index}
+            className={
+              lead
+                ? "type-body text-[1.1875rem] leading-relaxed first-letter:float-left first-letter:mr-3 first-letter:font-display first-letter:text-[4.25rem] first-letter:leading-[0.82] first-letter:font-medium"
+                : "type-body text-[1.0625rem] leading-relaxed text-foreground/90"
+            }
+          >
+            {block.split("\n").map((line, i) => (
+              <span key={i}>
+                {i > 0 ? <br /> : null}
+                {line}
+              </span>
+            ))}
+          </p>
+        )
+      })}
+    </div>
+  )
+}
+
+export function ArticleReader({ slug }: { slug: string }) {
+  const { data, loading, error, reload } = useAsync(
+    () => getPublishedArticle(slug),
+    [slug]
+  )
+
+  if (loading && !data) {
+    return (
+      <div className="page-container space-y-6 py-12" aria-busy aria-label="Carregando notícia">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-14 w-full max-w-3xl" />
+        <Skeleton className="h-5 w-full max-w-2xl" />
+        <Skeleton className="aspect-[21/9] w-full" />
+      </div>
+    )
+  }
+  if (error) return <LoadError onRetry={reload} />
+
+  const article = data?.article
+  if (!article) {
+    return (
+      <div className="page-container py-16">
+        <EmptyState
+          icon={SearchXIcon}
+          title="Notícia não encontrada"
+          description="Ela pode ter sido removida ou o endereço está incorreto."
+          action={
+            <Button asChild variant="outline">
+              <Link href="/noticias">Ver todas as notícias</Link>
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
+  return (
+    <article>
+      <header className="page-container pt-8 sm:pt-12">
+        <Link
+          href="/"
+          className="type-small inline-flex items-center gap-1.5 rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40"
+        >
+          <ArrowLeftIcon className="size-4" aria-hidden />
+          Voltar para a capa
+        </Link>
+        {data.demo ? <DemoNotice /> : null}
+        <Reveal className="mx-auto mt-8 max-w-4xl">
+          <ArticleMeta article={article} />
+          <h1 className="type-h1 mt-4 text-balance">{article.title}</h1>
+          {article.excerpt ? (
+            <p className="type-lead mt-5 max-w-3xl text-muted-foreground">
+              {article.excerpt}
+            </p>
+          ) : null}
+          <p className="type-small mt-6 border-t pt-4 text-muted-foreground">
+            {article.author ? (
+              <span className="font-medium text-foreground">Por {article.author}</span>
+            ) : null}
+            {article.author && article.published_at ? " · " : null}
+            {article.published_at ? formatDateTime(article.published_at) : null}
+            {!article.author && !article.published_at
+              ? editoriaLabel(article.editoria)
+              : null}
+          </p>
+        </Reveal>
+      </header>
+
+      {article.show_image || article.image_url ? (
+        <figure className="page-container mt-8">
+          <ArticleImage
+            article={article}
+            className="mx-auto aspect-[16/9] max-w-5xl rounded-sm"
+          />
+          {article.image_caption ? (
+            <figcaption className="type-caption mx-auto mt-2 max-w-5xl text-muted-foreground">
+              {article.image_caption}
+            </figcaption>
+          ) : null}
+        </figure>
+      ) : null}
+
+      <div className="page-container py-12 sm:py-16">
+        <ArticleBody body={article.body} />
+      </div>
+
+      {data.related.length ? (
+        <aside aria-labelledby="relacionadas" className="border-t bg-muted/50 py-14 sm:py-20">
+          <div className="page-container">
+            <h2 id="relacionadas" className="type-h2">
+              Continue lendo
+            </h2>
+            <RevealGroup className="mt-8 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+              {data.related.map((item, index) => (
+                <RevealItem key={item.id}>
+                  <ArticleCard
+                    article={item}
+                    size="small"
+                    showImage
+                    variant={(index % 3) as 0 | 1 | 2}
+                  />
+                </RevealItem>
+              ))}
+            </RevealGroup>
+          </div>
+        </aside>
+      ) : null}
+    </article>
+  )
+}
