@@ -14,6 +14,40 @@ const options = [
 
 const subscribe = () => () => {}
 
+/**
+ * Botão compacto do cabeçalho do site: alterna entre claro e escuro
+ * (a partir do tema que está de fato na tela, mesmo quando é o do sistema).
+ */
+export function ThemeToggle({ className }: { className?: string }) {
+  const { resolvedTheme, setTheme } = useTheme()
+  const mounted = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false
+  )
+  const dark = mounted && resolvedTheme === "dark"
+  const label = dark ? "Usar tema claro" : "Usar tema escuro"
+
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(dark ? "light" : "dark")}
+      aria-label={label}
+      title={label}
+      className={cn(
+        "grid size-(--control-h-sm) place-items-center rounded-md text-foreground/75 outline-none transition-colors duration-(--duration-fast) hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40",
+        className
+      )}
+    >
+      {dark ? (
+        <SunIcon className="size-4" aria-hidden />
+      ) : (
+        <MoonIcon className="size-4" aria-hidden />
+      )}
+    </button>
+  )
+}
+
 /** Seletor de tema (claro, escuro ou o do sistema). A escolha fica salva no navegador. */
 export function ThemeSwitcher() {
   const { theme, setTheme } = useTheme()

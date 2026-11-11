@@ -6,6 +6,7 @@ import { MenuIcon } from "lucide-react"
 import { motion, useMotionValueEvent, useScroll } from "motion/react"
 
 import { Logo } from "@/components/shared/logo"
+import { ThemeToggle } from "@/components/shared/theme-switcher"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -64,6 +65,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
             <Link href="/noticias">Todas as notícias</Link>
           </Button>
