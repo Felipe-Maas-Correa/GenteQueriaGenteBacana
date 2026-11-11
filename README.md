@@ -75,12 +75,14 @@ Qualquer pessoa pode criar uma conta pelo botão **Criar conta** do site; ela na
 
 ### E-mail de redefinição de senha
 
-1. **Nome do projeto:** em Configurações do projeto › Geral, defina o *Nome público* como `Gente Querida, Gente Bacana` (é o nome que aparece no e-mail).
-2. **Modelo:** em Authentication › Modelos › Redefinição de senha, clique no lápis e:
-   - Nome do remetente: `Gente Querida, Gente Bacana`
-   - Assunto: `Redefina sua senha — Gente Querida, Gente Bacana`
-   - Mensagem: cole o conteúdo de [`docs/email-redefinir-senha.html`](docs/email-redefinir-senha.html) (botão “Redefinir senha”).
-3. **Página do próprio site:** no mesmo modelo, em *Personalizar URL de ação*, informe `https://SEU-DOMINIO/redefinir-senha` (em desenvolvimento, `http://localhost:3000/redefinir-senha`). O link do e-mail passa a abrir a página do jornal em vez da página padrão do Firebase.
+O Firebase não permite editar o modelo de e-mail neste projeto, então o site envia o próprio e-mail (visual do jornal, botão “Redefinir senha”, link para `/redefinir-senha`). Fluxo: `POST /api/auth/redefinir-senha` → Firebase Admin gera o código → Resend envia o e-mail.
+
+1. **Conta de serviço:** Console do Firebase › Configurações do projeto › *Contas de serviço* › **Gerar nova chave privada**. Do arquivo `.json` baixado, copie `client_email` e `private_key` para `FIREBASE_ADMIN_CLIENT_EMAIL` e `FIREBASE_ADMIN_PRIVATE_KEY` no `.env.local` (a chave entre aspas, em uma linha). **Não suba esse arquivo para o GitHub** e apague-o depois de copiar.
+2. **Resend:** crie uma conta em resend.com, gere uma *API Key* e coloque em `RESEND_API_KEY`.
+3. **Remetente:** sem domínio verificado, `EMAIL_FROM` usa `onboarding@resend.dev` e só entrega para o e-mail dono da conta Resend (bom para testar). Para enviar a qualquer leitor, verifique o domínio do jornal no Resend e use, por exemplo, `Gente Querida, Gente Bacana <nao-responda@seudominio.com.br>`.
+4. Reinicie o `npm run dev`.
+
+Sem essas variáveis, o site continua funcionando com o e-mail padrão do Firebase. O modelo HTML também está em [`docs/email-redefinir-senha.html`](docs/email-redefinir-senha.html).
 
 ### Coleções do Firestore
 

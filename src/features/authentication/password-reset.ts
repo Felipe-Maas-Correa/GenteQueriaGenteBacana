@@ -9,6 +9,30 @@ import { actionError, type ActionResult } from "@/lib/utils/action-result"
  * configurada no Console do Firebase (veja o README).
  */
 export async function sendResetEmail(email: string): Promise<ActionResult> {
+  const sent = (target: string): ActionResult => ({
+    ok: true,
+    message: `Enviamos um link para ${target} para você criar uma nova senha.`,
+  })
+
+  // 1º: e-mail próprio do jornal (rota do servidor com Firebase Admin + Resend).
+  try {
+    const response = await fetch("/api/auth/redefinir-senha", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email.trim() }),
+    })
+    if (response.ok) return sent(email.trim())
+    const { code } = (await response.json().catch(() => ({}))) as { code?: string }
+    if (code === "invalid-email") return actionError("Informe um e-mail válido.")
+    if (code === "too-many-requests") {
+      return actionError("Muitas tentativas. Aguarde alguns minutos.")
+    }
+    // "not-configured" ou falha no envio: segue para o e-mail padrão do Firebase.
+  } catch {
+    // Rede/servidor indisponível: tenta o e-mail padrão do Firebase.
+  }
+
+  // 2º: e-mail padrão do Firebase.
   const auth = getFirebaseAuth()
   auth.languageCode = "pt-BR"
   try {

@@ -43,3 +43,7 @@ next-env.d.ts
 
 # ferramentas locais de desenvolvimento
 .claude/
+
+# chave da conta de serviço do Firebase (nunca versionar)
+*firebase-adminsdk*.json
+service-account*.json
