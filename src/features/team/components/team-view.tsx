@@ -30,6 +30,7 @@ import { formatDateTime } from "@/lib/utils/format"
 import type { UserRole } from "@/types/database"
 
 import { listProfiles, updateProfile } from "../queries"
+import { AddMemberDialog } from "./add-member-dialog"
 
 const roleDescriptions: Record<UserRole, string> = {
   admin: "Tudo, inclusive liberar acessos.",
@@ -72,13 +73,15 @@ export function TeamView() {
     }
   }
 
-
   return (
     <div className="space-y-4">
-      <p className="type-small text-muted-foreground">
-        Toda conta criada no site começa como <strong>leitor</strong>. Para dar acesso
-        ao painel, escolha <strong>Editor</strong> ou <strong>Administrador</strong>.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="type-small max-w-xl text-muted-foreground">
+          Cadastre novos membros pelo botão ao lado. Quem cria conta pelo site entra
+          como <strong>leitor</strong>; para dar acesso ao painel, mude o papel na lista.
+        </p>
+        <AddMemberDialog onAdded={reload} />
+      </div>
 
       <div className="overflow-hidden rounded-xl border bg-card">
         <Table>

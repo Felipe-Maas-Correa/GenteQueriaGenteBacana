@@ -3,7 +3,6 @@ import {
   LayoutTemplateIcon,
   MapPinIcon,
   NewspaperIcon,
-  PaletteIcon,
   SettingsIcon,
   ShieldCheckIcon,
   TagsIcon,
@@ -22,6 +21,9 @@ export type AdminNavItem = {
 export type AdminNavGroup = { label: string; items: AdminNavItem[] }
 
 /**
+ * O Guia de Estilo (/admin/guia-de-estilo) é ferramenta de desenvolvimento:
+ * continua acessível pelo endereço, mas fica fora do menu.
+ *
  * Navegação do painel administrativo. Para adicionar um módulo, inclua um item
  * aqui — sidebar, menu móvel e breadcrumbs são gerados a partir desta lista.
  */
@@ -55,7 +57,6 @@ export const adminNavigation: AdminNavGroup[] = [
     label: "Sistema",
     items: [
       { label: "Equipe", href: "/admin/equipe", icon: ShieldCheckIcon },
-      { label: "Guia de Estilo", href: "/admin/guia-de-estilo", icon: PaletteIcon },
       { label: "Configurações", href: "/admin/configuracoes", icon: SettingsIcon },
     ],
   },
