@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeftIcon, InfoIcon, SearchXIcon } from "lucide-react"
+import { ArrowLeftIcon, NewspaperIcon, SearchXIcon } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
 import { Reveal, RevealGroup, RevealItem } from "@/components/shared/reveal"
@@ -18,12 +18,13 @@ import {
 } from "../queries"
 import { ArticleCard, ArticleImage, ArticleMeta, HomeGrid } from "./article-card"
 
-function DemoNotice() {
+function NoNews({ message }: { message: string }) {
   return (
-    <p className="type-caption flex items-center gap-2 rounded-sm bg-brand-soft px-3 py-2 text-foreground">
-      <InfoIcon className="size-3.5 shrink-0 text-brand" aria-hidden />
-      Conteúdo de exemplo — as notícias publicadas no painel aparecem aqui.
-    </p>
+    <div className="py-20 text-center">
+      <NewspaperIcon className="mx-auto size-8 text-muted-foreground" aria-hidden />
+      <p className="type-h3 mt-4">Nenhuma notícia por aqui ainda</p>
+      <p className="mt-2 text-muted-foreground">{message}</p>
+    </div>
   )
 }
 
@@ -60,18 +61,15 @@ export function HomeFeed() {
 
   return (
     <section className="page-container pt-8 pb-16 sm:pt-10 lg:pb-24">
-      {data?.demo ? <DemoNotice /> : null}
       <div className="mt-6">
         {loading && !data ? (
           <GridSkeleton />
         ) : error ? (
           <LoadError onRetry={reload} />
-        ) : data?.articles.length ? (
-          <HomeGrid articles={data.articles} />
+        ) : data?.length ? (
+          <HomeGrid articles={data} />
         ) : (
-          <p className="py-16 text-center text-muted-foreground">
-            Nenhuma notícia na página inicial no momento.
-          </p>
+          <NoNews message="As notícias publicadas pela redação aparecem aqui." />
         )}
       </div>
     </section>
@@ -89,13 +87,16 @@ export function NewsIndex() {
   const sections = editorias
     .map((editoria) => ({
       ...editoria,
-      articles: (data?.articles ?? []).filter((a) => a.editoria === editoria.slug),
+      articles: (data ?? []).filter((a) => a.editoria === editoria.slug),
     }))
     .filter((section) => section.articles.length > 0)
 
+  if (!sections.length) {
+    return <NoNews message="Assim que a redação publicar, as notícias aparecem aqui por editoria." />
+  }
+
   return (
     <div className="space-y-16 lg:space-y-20">
-      {data?.demo ? <DemoNotice /> : null}
       {sections.map((section) => (
         <section
           key={section.slug}
@@ -215,7 +216,6 @@ export function ArticleReader({ slug }: { slug: string }) {
           <ArrowLeftIcon className="size-4" aria-hidden />
           Voltar para a capa
         </Link>
-        {data.demo ? <DemoNotice /> : null}
         <Reveal className="mx-auto mt-8 max-w-4xl">
           <ArticleMeta article={article} />
           <h1 className="type-h1 mt-4 text-balance">{article.title}</h1>

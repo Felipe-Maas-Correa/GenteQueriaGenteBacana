@@ -12,8 +12,6 @@ import { getDb, getFirebase } from "@/lib/firebase/client"
 import { tsToISO, withTimeout } from "@/lib/firebase/firestore-helpers"
 import type { Article } from "@/types/database"
 
-import { demoAsArticles } from "./demo-articles"
-
 export function mapArticle(id: string, data: Record<string, unknown>): Article {
   const str = (key: string) => (data[key] as string) ?? ""
   return {
@@ -65,14 +63,14 @@ export async function getArticle(id: string): Promise<Article | null> {
 }
 
 /* ── Site público ────────────────────────────────────────────────
- * As consultas sempre filtram por `status == "published"`: é a condição que
- * as Security Rules exigem para leitura anônima. Sem Firebase configurado ou
- * sem nenhuma notícia publicada, o site mostra o conteúdo de exemplo.
+ * As notícias vêm exclusivamente do banco. As consultas sempre filtram por
+ * `status == "published"`: é a condição que as Security Rules exigem para a
+ * leitura anônima. Sem resposta do banco em alguns segundos, a consulta falha
+ * e a tela mostra o erro com opção de tentar de novo.
  */
 
-export type PublicFeed = { articles: Article[]; demo: boolean }
-
 async function publishedQuery(): Promise<Article[]> {
+  if (!getFirebase()) return []
   const snapshot = await withTimeout(
     getDocs(
       query(collection(getDb(), "articles"), where("status", "==", "published"))
@@ -81,63 +79,37 @@ async function publishedQuery(): Promise<Article[]> {
   return snapshot.docs.map((d) => mapArticle(d.id, d.data())).sort(byNewest)
 }
 
-export async function listPublishedArticles(): Promise<PublicFeed> {
-  if (!getFirebase()) return { articles: demoAsArticles(), demo: true }
-  let articles: Article[] = []
-  try {
-    articles = await publishedQuery()
-  } catch (error) {
-    // Banco indisponível ou regras ainda não publicadas: mostra o exemplo.
-    console.warn("Notícias indisponíveis; exibindo conteúdo de exemplo.", error)
-  }
-  return articles.length
-    ? { articles, demo: false }
-    : { articles: demoAsArticles(), demo: true }
+/** Todas as notícias publicadas, da mais recente para a mais antiga. */
+export function listPublishedArticles(): Promise<Article[]> {
+  return publishedQuery()
 }
 
 /** Notícias da página inicial, na ordem definida no painel. */
-export async function listHomeArticles(): Promise<PublicFeed> {
-  const feed = await listPublishedArticles()
-  if (feed.demo) return feed
-  return {
-    articles: feed.articles.filter((a) => a.on_home).sort(byHomeOrder),
-    demo: false,
-  }
+export async function listHomeArticles(): Promise<Article[]> {
+  const articles = await publishedQuery()
+  return articles.filter((a) => a.on_home).sort(byHomeOrder)
 }
 
 export async function getPublishedArticle(
   slug: string
-): Promise<{ article: Article | null; related: Article[]; demo: boolean }> {
-  if (getFirebase()) {
-    try {
-      const snapshot = await withTimeout(
-        getDocs(
-          query(
-            collection(getDb(), "articles"),
-            where("status", "==", "published"),
-            where("slug", "==", slug),
-            limit(1)
-          )
-        )
+): Promise<{ article: Article | null; related: Article[] }> {
+  if (!getFirebase()) return { article: null, related: [] }
+  const snapshot = await withTimeout(
+    getDocs(
+      query(
+        collection(getDb(), "articles"),
+        where("status", "==", "published"),
+        where("slug", "==", slug),
+        limit(1)
       )
-      const found = snapshot.docs[0]
-      if (found) {
-        const article = mapArticle(found.id, found.data())
-        const others = await publishedQuery().catch(() => [])
-        return {
-          article,
-          related: others.filter((a) => a.id !== article.id).slice(0, 3),
-          demo: false,
-        }
-      }
-    } catch (error) {
-      console.warn("Notícia indisponível; tentando o conteúdo de exemplo.", error)
-    }
-  }
-  const demo = demoAsArticles()
+    )
+  )
+  const found = snapshot.docs[0]
+  if (!found) return { article: null, related: [] }
+  const article = mapArticle(found.id, found.data())
+  const others = await publishedQuery().catch(() => [])
   return {
-    article: demo.find((a) => a.slug === slug) ?? null,
-    related: demo.filter((a) => a.slug !== slug).slice(0, 3),
-    demo: true,
+    article,
+    related: others.filter((a) => a.id !== article.id).slice(0, 3),
   }
 }

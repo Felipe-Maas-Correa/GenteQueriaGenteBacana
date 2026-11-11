@@ -53,8 +53,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { ArticleCard } from "@/features/news/components/article-card"
-import { demoAsArticles } from "@/features/news/demo-articles"
 import {
   ChoiceControlsDemo,
   FieldsDemo,
@@ -391,15 +389,6 @@ export default function StyleGuidePage() {
                 <Button size="sm">Salvar</Button>
               </CardFooter>
             </Card>
-          </Showcase>
-
-          <Showcase
-            title="Card de notícia"
-            description="Usado no portal (conteúdo ilustrativo)."
-            usage={`<ArticleCard article={article} size="small" showImage />`}
-            contentClassName="block"
-          >
-            <ArticleCard article={demoAsArticles()[2]} className="max-w-sm" />
           </Showcase>
 
           <Showcase
