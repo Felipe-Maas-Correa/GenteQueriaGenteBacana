@@ -73,6 +73,15 @@ Sem as variáveis do Firebase a aplicação sobe normalmente, mas em **modo de v
 
 Qualquer pessoa pode criar uma conta pelo botão **Criar conta** do site; ela nasce como `reader` (leitor). O primeiro administrador é promovido direto no banco, como acima; depois disso, os administradores definem os papéis em **Sistema › Equipe** (`editor` ou `admin`).
 
+### E-mail de redefinição de senha
+
+1. **Nome do projeto:** em Configurações do projeto › Geral, defina o *Nome público* como `Gente Querida, Gente Bacana` (é o nome que aparece no e-mail).
+2. **Modelo:** em Authentication › Modelos › Redefinição de senha, clique no lápis e:
+   - Nome do remetente: `Gente Querida, Gente Bacana`
+   - Assunto: `Redefina sua senha — Gente Querida, Gente Bacana`
+   - Mensagem: cole o conteúdo de [`docs/email-redefinir-senha.html`](docs/email-redefinir-senha.html) (botão “Redefinir senha”).
+3. **Página do próprio site:** no mesmo modelo, em *Personalizar URL de ação*, informe `https://SEU-DOMINIO/redefinir-senha` (em desenvolvimento, `http://localhost:3000/redefinir-senha`). O link do e-mail passa a abrir a página do jornal em vez da página padrão do Firebase.
+
 ### Coleções do Firestore
 
 | Coleção | Conteúdo |

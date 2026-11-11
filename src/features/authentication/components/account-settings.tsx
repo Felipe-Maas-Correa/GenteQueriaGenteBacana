@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { sendPasswordResetEmail, updateProfile as updateAuthProfile } from "firebase/auth"
+import { updateProfile as updateAuthProfile } from "firebase/auth"
 import { KeyRoundIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/features/authentication/auth-context"
+import { sendResetEmail } from "@/features/authentication/password-reset"
 import { roleLabels } from "@/features/authentication/roles"
 import { updateProfile } from "@/features/team/queries"
 import { getFirebaseAuth } from "@/lib/firebase/client"
@@ -69,12 +70,9 @@ function ProfileCard() {
 
   const resetPassword = () =>
     startReset(async () => {
-      try {
-        await sendPasswordResetEmail(getFirebaseAuth(), user.email)
-        toast.success(`Enviamos um link para ${user.email} para você criar uma nova senha.`)
-      } catch {
-        toast.error("Não foi possível enviar o e-mail. Tente novamente.")
-      }
+      const result = await sendResetEmail(user.email)
+      if (result.ok) toast.success(result.message)
+      else toast.error(result.message)
     })
 
   return (

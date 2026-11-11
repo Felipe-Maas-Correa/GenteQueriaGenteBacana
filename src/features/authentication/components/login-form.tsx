@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState, useTransition } from "react"
 import { useForm } from "react-hook-form"
+import { toast } from "sonner"
 import { CircleAlertIcon, CircleCheckIcon, EyeIcon, EyeOffIcon } from "lucide-react"
 
 import { Field } from "@/components/forms/field"
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { loginSchema, type LoginInput } from "@/lib/validations/auth"
 
+import { sendResetEmail } from "../password-reset"
 import { SIGNUP_EMAIL_KEY } from "./signup-form"
 
 // Sem destino definido, volta para a capa; a equipe acessa o painel pelo menu.
@@ -38,11 +40,28 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
     handleSubmit,
     setValue,
     setFocus,
+    getValues,
+    setError,
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
   })
+
+  const [sendingReset, startReset] = useTransition()
+  const forgotPassword = () => {
+    const email = getValues("email").trim()
+    if (!email) {
+      setError("email", { message: "Digite seu e-mail para receber o link." })
+      setFocus("email")
+      return
+    }
+    startReset(async () => {
+      const result = await sendResetEmail(email)
+      if (result.ok) toast.success(result.message)
+      else toast.error(result.message)
+    })
+  }
 
   // Depois do cadastro: preenche o e-mail e leva o cursor para a senha.
   useEffect(() => {
@@ -134,6 +153,15 @@ export function LoginForm({ disabled = false }: { disabled?: boolean }) {
       <Button type="submit" size="lg" loading={pending} disabled={disabled}>
         Entrar
       </Button>
+
+      <button
+        type="button"
+        disabled={disabled || sendingReset}
+        onClick={forgotPassword}
+        className="type-small -mt-1 justify-self-center rounded-sm text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50"
+      >
+        {sendingReset ? "Enviando…" : "Esqueci minha senha"}
+      </button>
     </form>
   )
 }
