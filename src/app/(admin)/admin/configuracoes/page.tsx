@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 import { CheckCircle2Icon, CircleAlertIcon } from "lucide-react"
 
 import { PageHeader } from "@/components/shared/page-header"
-import { ThemeSwitcher } from "@/components/shared/theme-switcher"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -11,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { AccountInfo } from "@/features/authentication/components/account-info"
 import { isFirebaseConfigured } from "@/lib/firebase/config"
 import { siteConfig } from "@/lib/site"
 import { APP_TIME_ZONE } from "@/lib/utils/format"
@@ -37,7 +35,7 @@ export default function SettingsPage() {
       <PageHeader
         overline="Sistema"
         title="Configurações"
-        description="Informações do sistema e preferências de interface."
+        description="Informações do sistema. Seus dados e o tema ficam em Minha conta (menu do seu usuário)."
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -68,30 +66,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Sua conta</CardTitle>
-            <CardDescription>
-              Dados do usuário conectado. Alterações de acesso são feitas pela
-              administração.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AccountInfo />
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Preferências de interface</CardTitle>
-            <CardDescription>
-              O tema escolhido fica salvo neste navegador.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ThemeSwitcher />
-          </CardContent>
-        </Card>
       </div>
     </div>
   )

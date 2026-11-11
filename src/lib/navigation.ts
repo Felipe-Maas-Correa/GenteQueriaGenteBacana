@@ -71,6 +71,7 @@ export const adminSegmentLabels: Record<string, string> = {
   nova: "Nova notícia",
   "pagina-inicial": "Página inicial",
   equipe: "Equipe",
+  "minha-conta": "Minha conta",
   "guia-de-estilo": "Guia de Estilo",
   configuracoes: "Configurações",
 }

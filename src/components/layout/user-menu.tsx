@@ -56,9 +56,9 @@ export function UserMenu() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/admin/configuracoes">
+          <Link href="/admin/minha-conta">
             <SettingsIcon aria-hidden />
-            Configurações
+            Minha conta e tema
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
