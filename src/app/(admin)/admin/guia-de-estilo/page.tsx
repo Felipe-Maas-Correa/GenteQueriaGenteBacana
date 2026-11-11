@@ -131,7 +131,7 @@ export default function StyleGuidePage() {
       <GuideSection
         id="identidade"
         title="Identidade visual"
-        description="Tinta sobre papel branco, com o azul como marca e o vermelho reservado à urgência. O símbolo são dois círculos que se encontram: gente com gente."
+        description="Tinta sobre papel branco, com o azul como marca e o vermelho reservado à urgência. O símbolo é a primeira página de um jornal, com um círculo azul no lugar da foto: a gente que é notícia."
       >
         <div className="grid gap-4 md:grid-cols-3">
           <div className="grid min-h-44 place-items-center rounded-xl border bg-background p-6">

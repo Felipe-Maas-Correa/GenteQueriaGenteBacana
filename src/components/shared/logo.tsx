@@ -3,32 +3,33 @@ import { cn } from "@/lib/utils"
 type LogoMarkProps = React.ComponentProps<"svg"> & { title?: string }
 
 /**
- * Símbolo: dois círculos que se encontram — gente com gente.
+ * Símbolo: a primeira página de um jornal — cabeçalho, colunas de texto e,
+ * no lugar da foto, um círculo azul: a gente que é notícia.
  * As cores vêm dos tokens (--brand e currentColor).
  */
 export function LogoMark({ className, title, ...props }: LogoMarkProps) {
   return (
     <svg
-      viewBox="0 0 44 32"
+      viewBox="0 0 32 32"
       role={title ? "img" : undefined}
       aria-hidden={title ? undefined : true}
       className={cn("h-8 w-auto shrink-0", className)}
       {...props}
     >
       {title ? <title>{title}</title> : null}
-      <circle cx="16" cy="16" r="14" fill="var(--brand)" />
-      <circle
-        cx="28"
-        cy="16"
-        r="13"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M23.125 3.95A14 14 0 0 1 23.125 28.05A13 13 0 0 1 23.125 3.95Z"
-        fill="currentColor"
-      />
+      {/* Página dobrada (verso) */}
+      <path d="M7 6V3.5A1.5 1.5 0 0 1 8.5 2H29.5A1.5 1.5 0 0 1 31 3.5V25" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.45" />
+      {/* Página da frente */}
+      <rect x="1.75" y="5.75" width="25.5" height="24.5" rx="1.5" fill="none" stroke="currentColor" strokeWidth="2" />
+      {/* Cabeçalho do jornal */}
+      <rect x="5.5" y="9.5" width="18" height="3" fill="currentColor" />
+      {/* Foto: gente */}
+      <circle cx="10.25" cy="19.25" r="4.25" fill="var(--brand)" />
+      {/* Colunas de texto */}
+      <rect x="16.5" y="15.25" width="7" height="1.6" fill="currentColor" />
+      <rect x="16.5" y="18.45" width="7" height="1.6" fill="currentColor" />
+      <rect x="16.5" y="21.65" width="7" height="1.6" fill="currentColor" />
+      <rect x="5.5" y="25.25" width="18" height="1.6" fill="currentColor" />
     </svg>
   )
 }

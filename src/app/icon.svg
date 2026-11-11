@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Ícone da aba: primeira página de jornal sobre fundo tinta (legível em abas claras e escuras) -->
+  <rect width="32" height="32" rx="6" fill="#121212"/>
+  <rect x="5" y="4" width="22" height="24" rx="1.5" fill="#ffffff"/>
+  <rect x="8" y="7" width="16" height="3" fill="#121212"/>
+  <circle cx="12" cy="16.5" r="3.6" fill="#0b5394"/>
+  <rect x="17.2" y="13.4" width="6.8" height="1.6" fill="#121212"/>
+  <rect x="17.2" y="16.4" width="6.8" height="1.6" fill="#121212"/>
+  <rect x="17.2" y="19.4" width="6.8" height="1.6" fill="#121212"/>
+  <rect x="8" y="23" width="16" height="1.6" fill="#121212"/>
+</svg>
