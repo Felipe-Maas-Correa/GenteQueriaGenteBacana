@@ -1,4 +1,5 @@
 import {
+  getDoc,
   arrayRemove,
   arrayUnion,
   collection,
@@ -91,13 +92,26 @@ export async function addComment(input: {
   try {
     const db = getDb()
     const ref = doc(collection(db, "comentarios"))
+    // Nome, foto e selo de assinante lidos AGORA do banco, exatamente como as
+    // regras conferem (evita falha se a tela ainda não carregou a assinatura
+    // ou se o perfil mudou depois de abrir a página).
+    const [profileSnap, subscriptionSnap] = await Promise.all([
+      getDoc(doc(db, "profiles", input.author.uid)),
+      getDoc(doc(db, "assinaturas", input.author.uid)).catch(() => null),
+    ])
+    const profile = profileSnap.data() ?? {}
+    const author = {
+      name: (profile.name as string) || "Leitor",
+      photo: (profile.photo_url as string) ?? "",
+      subscriber: subscriptionSnap?.data()?.status === "ativa",
+    }
     const data = {
       article_id: input.articleId,
       parent_id: input.parentId,
       author_uid: input.author.uid,
-      author_name: input.author.name,
-      author_photo: input.author.photo,
-      author_subscriber: input.author.subscriber,
+      author_name: author.name,
+      author_photo: author.photo,
+      author_subscriber: author.subscriber,
       text,
       liked_by: [] as string[],
       deleted: false,
