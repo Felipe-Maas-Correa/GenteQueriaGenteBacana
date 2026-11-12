@@ -91,6 +91,19 @@ Os documentos são criados pela própria aplicação — não é preciso montar 
 
 **Busca e filtros.** O Firestore não faz busca por texto no servidor. Os filtros de igualdade mais comuns (área, mês, status) são aplicados no servidor (índices automáticos, sem configuração); a busca livre por nome/telefone/endereço e as faixas de dia/data são resolvidas em memória sobre o conjunto já filtrado, com um teto de leitura. É adequado à escala de um jornal regional (centenas a poucos milhares de assinantes). Para bases muito maiores, a busca pode ser migrada para uma extensão como Algolia ou Typesense — ver `src/features/subscribers/queries.ts`.
 
+## Segurança
+
+O site é estático: todo acesso ao banco sai do navegador, então **a proteção real está em `firestore.rules`**, que valida cada escrita campo a campo (quem pode mexer em quê, tipos e tamanhos). A tela só esconde botões.
+
+- **Testes das regras:** `npm run test:rules` sobe o emulador do Firestore (precisa de Java) e tenta dezenas de ataques — promover-se a admin, fingir ser outra pessoa, fugir da cobrança, ler CPF alheio etc. Todos precisam ser recusados, e os usos normais do site precisam funcionar. Rode sempre que mexer nas regras. No Windows, se o emulador não abrir ("Unable to establish loopback connection"), use `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=C:/tmp`.
+- **Cabeçalhos HTTP** (em `firebase.json`): CSP, proteção contra o site ser embutido em outro (clickjacking), `nosniff`, HSTS e política de referência. `node scripts/serve-out.mjs` aplica os mesmos cabeçalhos para testar a pasta `out/` localmente.
+- **Dados de cobrança** (CPF, endereço, faturas) são visíveis só para o dono e para administradores.
+- **No Console do Firebase / Google Cloud** (recomendado):
+  - Restringir a chave de API aos domínios do site (Google Cloud › APIs e serviços › Credenciais).
+  - Ativar o **App Check** (reCAPTCHA) para que só o site consiga usar o banco.
+  - Ativar a **proteção contra enumeração de e-mails** e a política de senha em Authentication › Configurações.
+  - Não guardar chaves de conta de serviço: o site não usa nenhuma.
+
 ## Estrutura
 
 ```

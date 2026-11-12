@@ -50,7 +50,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useAuth, isStaff } from "@/features/authentication/auth-context"
+import { useAuth } from "@/features/authentication/auth-context"
 import { useAsync } from "@/hooks/use-async"
 import type { ActionResult } from "@/lib/utils/action-result"
 import { formatDate, formatDateTime, normalizeSearch } from "@/lib/utils/format"
@@ -507,7 +507,8 @@ function InvoicesTab() {
 export function AdminBillingView() {
   const { status, user } = useAuth()
   const configured = status !== "unconfigured"
-  const staff = isStaff(user?.role)
+  // Dados de cobrança (CPF, endereço, valores): somente administradores.
+  const staff = user?.role === "admin"
   const { data, loading, error, reload } = useAsync(
     () =>
       configured && staff
@@ -521,7 +522,13 @@ export function AdminBillingView() {
 
   if (!configured) return <SetupNotice />
   if (user && !staff) {
-    return <EmptyState icon={ShieldAlertIcon} title="Somente a equipe" description="Área restrita à equipe do jornal." />
+    return (
+      <EmptyState
+        icon={ShieldAlertIcon}
+        title="Somente administradores"
+        description="Os dados de cobrança (CPF, endereço e valores) ficam restritos aos administradores."
+      />
+    )
   }
   if (loading && !data) return <TableSkeleton rows={5} />
   if (error) return <QueryError message={error} onRetry={reload} />

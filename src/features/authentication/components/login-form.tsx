@@ -20,9 +20,22 @@ import { SIGNUP_EMAIL_KEY } from "./signup-form"
 // Sem destino definido, volta para a capa; a equipe acessa o painel pelo menu.
 const DEFAULT_HOME = "/"
 
-function safeNext(next: string | null): string {
-  if (next && next.startsWith("/") && !next.startsWith("//")) return next
-  return DEFAULT_HOME
+/**
+ * Só aceita destinos DENTRO do site. Bloqueia "//outro.com", "/\\outro.com"
+ * (o navegador trata a barra invertida como "//") e esquemas como
+ * "javascript:" — evita usar o login como trampolim para sites falsos.
+ */
+export function safeNext(next: string | null): string {
+  if (!next || !next.startsWith("/") || /[\\\s]/.test(next) || next.startsWith("//")) {
+    return DEFAULT_HOME
+  }
+  try {
+    const url = new URL(next, window.location.origin)
+    if (url.origin !== window.location.origin) return DEFAULT_HOME
+    return url.pathname + url.search + url.hash
+  } catch {
+    return DEFAULT_HOME
+  }
 }
 
 export function LoginForm({ disabled = false }: { disabled?: boolean }) {

@@ -251,10 +251,7 @@ function Thread({
       return false
     }
     const created = result.data.comment
-    setItems((list) => [
-      ...list.map((c) => (c.id === parentId ? { ...c, reply_count: c.reply_count + 1 } : c)),
-      created,
-    ])
+    setItems((list) => [...list, created])
     if (parentId) {
       setOpen((set) => new Set(set).add(parentId))
       setReplyTo(null)
@@ -286,11 +283,7 @@ function Thread({
     const result = await deleteComment(comment)
     if (!result.ok) return toast.error(result.message)
     setItems((list) =>
-      list.map((c) => {
-        if (c.id === comment.id) return { ...c, deleted: true, text: "" }
-        if (c.id === comment.parent_id) return { ...c, reply_count: Math.max(0, c.reply_count - 1) }
-        return c
-      })
+      list.map((c) => (c.id === comment.id ? { ...c, deleted: true, text: "" } : c))
     )
     toast.success(result.message)
   }
@@ -423,7 +416,8 @@ export function CommentsSection({ articleId, articleSlug }: { articleId: string;
   const author: Author | null = user
     ? {
         uid: user.id,
-        name: user.name,
+        // Exatamente o nome do perfil (as regras do banco conferem).
+        name: user.profileName || "Leitor",
         photo: user.photoUrl,
         subscriber: subscription.data?.status === "ativa",
       }

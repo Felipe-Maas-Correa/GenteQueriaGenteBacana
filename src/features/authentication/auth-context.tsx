@@ -22,6 +22,7 @@ import {
   onSnapshot,
   serverTimestamp,
   setDoc,
+  updateDoc,
 } from "firebase/firestore"
 
 import { toast } from "sonner"
@@ -56,6 +57,8 @@ export type CurrentUser = {
   email: string
   role: UserRole
   photoUrl: string
+  /** Nome gravado no perfil (vazio se nunca definido); é o que vai nos comentários. */
+  profileName: string
 }
 
 type AuthContextValue = {
@@ -81,6 +84,7 @@ function mapUser(firebaseUser: FirebaseUser, profile: Profile | null): CurrentUs
       "Usuário",
     role: normalizeRole(profile?.role),
     photoUrl: profile?.photo_url ?? "",
+    profileName: profile?.name ?? "",
   }
 }
 
@@ -215,20 +219,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           parsed.data.password
         )
         await updateProfile(created, { displayName: parsed.data.name })
-        // O perfil nasce como "reader"; aqui só garantimos o nome. Com o
-        // banco fora do ar, a conta já existe no Auth e o perfil é criado
-        // no próximo login — por isso o tempo-limite não bloqueia o cadastro.
-        await withTimeout(setDoc(
-          doc(firebase.db, "profiles", created.uid),
-          {
+        // O perfil nasce como "reader". Se o ensureProfile (login automático)
+        // já o criou, só gravamos o nome. Com o banco fora do ar, o perfil é
+        // criado no próximo login — o tempo-limite não bloqueia o cadastro.
+        // O e-mail é o da conta (as regras exigem isso).
+        const profileRef = doc(firebase.db, "profiles", created.uid)
+        await withTimeout(
+          setDoc(profileRef, {
             name: parsed.data.name,
-            email: parsed.data.email,
+            email: created.email ?? parsed.data.email,
             role: "reader",
             created_at: serverTimestamp(),
             updated_at: serverTimestamp(),
-          },
-          { merge: true }
-        )).catch(() => {})
+          }).catch(() =>
+            updateDoc(profileRef, { name: parsed.data.name, updated_at: serverTimestamp() })
+          )
+        ).catch(() => {})
         return { ok: true, message: "Conta criada." }
       } catch (error) {
         const code = (error as { code?: string }).code

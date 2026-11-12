@@ -105,6 +105,11 @@ export async function addTeamMember({
       const found = await getDocs(
         query(collection(db, "profiles"), where("email", "==", cleanEmail))
       )
+      // As regras garantem que o e-mail do perfil é o da própria conta;
+      // mesmo assim, se houver mais de um perfil com o e-mail, não arrisca.
+      if (found.size > 1) {
+        return actionError("Há mais de um perfil com este e-mail. Fale com o suporte técnico.")
+      }
       const profile = found.docs[0]
       if (!profile) {
         return actionError(

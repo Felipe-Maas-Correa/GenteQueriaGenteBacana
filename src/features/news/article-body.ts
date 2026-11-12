@@ -40,9 +40,24 @@ export function isEmptyBody(html: string): boolean {
   return html.replace(/<[^>]*>/g, "").trim() === "" && !/<img/i.test(html)
 }
 
+let hooksInstalled = false
+
 /** Remove qualquer HTML perigoso antes de exibir (roda só no navegador). */
 export async function sanitizeBody(html: string): Promise<string> {
   const { default: DOMPurify } = await import("dompurify")
+  if (!hooksInstalled) {
+    // Link que abre em nova aba não pode controlar a página de origem
+    // (tabnabbing); qualquer outro "target" é descartado.
+    DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+      if (node.tagName !== "A") return
+      if (node.getAttribute("target") === "_blank") {
+        node.setAttribute("rel", "noopener noreferrer")
+      } else {
+        node.removeAttribute("target")
+      }
+    })
+    hooksInstalled = true
+  }
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
       "p", "br", "h2", "h3", "strong", "b", "em", "i", "u", "s", "a",

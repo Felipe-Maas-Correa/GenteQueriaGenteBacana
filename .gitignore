@@ -50,3 +50,7 @@ service-account*.json
 
 # cache do deploy do Firebase
 .firebase/
+
+# logs do emulador do Firebase
+firestore-debug.log
+*-debug.log

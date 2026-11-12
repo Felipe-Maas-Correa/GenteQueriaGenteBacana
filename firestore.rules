@@ -2,20 +2,31 @@ rules_version = '2';
 
 // Regras de segurança do Firestore — Gente Querida, Gente Bacana.
 //
-// Esta é a proteção real dos dados (equivalente ao RLS). A interface apenas
-// esconde botões; estas regras impedem o acesso de fato. Publique-as no
-// Console do Firebase (Firestore Database > Regras) ou com a CLI.
+// O site é estático: TODO acesso ao banco sai do navegador, e qualquer pessoa
+// pode chamar o Firestore direto (console do navegador), ignorando a tela.
+// Por isso a proteção real fica aqui: cada escrita é validada campo a campo
+// (lista fechada de campos, tipos, tamanhos e quem pode mexer em quê).
+// Testes automatizados: tests/firestore-rules.test.mjs (npm run test:rules).
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Funções gerais ────────────────────────────────────────────
     function signedIn() {
       return request.auth != null;
     }
 
+    // E-mail da conta logada (do token do Firebase Auth, não do banco).
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function profilePath(uid) {
+      return /databases/$(database)/documents/profiles/$(uid);
+    }
+
     // Conta desativada (disabled == true) perde qualquer papel de equipe.
     function roleOf(uid) {
-      let path = /databases/$(database)/documents/profiles/$(uid);
-      let profile = exists(path) ? get(path).data : null;
+      let profile = exists(profilePath(uid)) ? get(profilePath(uid)).data : null;
       return profile == null ? 'reader'
         : profile.get('disabled', false) == true ? 'reader'
         : profile.role;
@@ -33,30 +44,62 @@ service cloud.firestore {
       return myRole() == 'admin';
     }
 
-    // Perfis: cada um lê o seu; admin lê todos. Ninguém promove a si mesmo.
+    function isDisabled() {
+      return exists(profilePath(request.auth.uid))
+        && get(profilePath(request.auth.uid)).data.get('disabled', false) == true;
+    }
+
+    // Foto: vazia ou uma imagem do próprio banco ("/api/imagens/{id}").
+    // Endereços externos são proibidos (evita rastrear quem vê a foto).
+    function isValidPhoto(value) {
+      return value == '' || (value is string && value.matches('^/api/imagens/[A-Za-z0-9]{1,64}$'));
+    }
+
+    function isShortText(value, max) {
+      return value is string && value.size() <= max;
+    }
+
+    // Só os campos listados mudaram.
+    function onlyChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // ── Perfis ────────────────────────────────────────────────────
+    // Cada um lê o seu; admin lê todos. O e-mail do perfil é SEMPRE o da
+    // conta (ninguém finge ser outra pessoa) e ninguém muda o próprio papel.
+    function isValidOwnProfile(d) {
+      return isShortText(d.get('name', ''), 80)
+        && d.email is string && d.email.lower() == myEmail()
+        && isValidPhoto(d.get('photo_url', ''));
+    }
+
     match /profiles/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
 
-      // Primeiro acesso: o usuário cria o próprio perfil sempre como 'reader' (leitor).
-      // Para promover alguém a admin/editor, altere o campo role direto no banco
-      // ou use Sistema › Equipe (somente administradores).
+      // Primeiro acesso: o próprio usuário cria o perfil, sempre como leitor.
       allow create: if signedIn()
                     && request.auth.uid == uid
-                    && request.resource.data.role == 'reader';
+                    && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'photo_url', 'created_at', 'updated_at'])
+                    && request.resource.data.role == 'reader'
+                    && isValidOwnProfile(request.resource.data);
 
-      // Admin altera qualquer perfil (papel, desativar); o próprio usuário pode
-      // alterar o seu desde que NÃO mude o papel nem a desativação.
       allow update: if signedIn() && (
-        (isAdmin() && request.auth.uid != uid) ||
+        // Admin: papel e desativação de OUTRAS contas.
+        (isAdmin() && request.auth.uid != uid
+          && onlyChanged(['role', 'disabled', 'updated_at'])
+          && request.resource.data.role in ['admin', 'editor', 'reader']
+          && request.resource.data.get('disabled', false) is bool)
+        ||
+        // O próprio usuário: nome, foto e e-mail (só o da própria conta).
         (request.auth.uid == uid
-          && request.resource.data.role == resource.data.role
-          && request.resource.data.get('disabled', false) == resource.data.get('disabled', false))
+          && onlyChanged(['name', 'photo_url', 'email', 'updated_at'])
+          && isValidOwnProfile(request.resource.data))
       );
 
       allow delete: if isAdmin();
     }
 
-    // Áreas e assinantes: somente a equipe (admin/editor).
+    // ── Circulação (dados pessoais de entrega): somente a equipe ──
     match /areas/{id} {
       allow read, create, update, delete: if isStaff();
     }
@@ -65,82 +108,133 @@ service cloud.firestore {
       allow read, create, update, delete: if isStaff();
     }
 
-    // Editorias (menu do site): qualquer visitante lê; só administradores editam.
+    // ── Editorias (menu do site): todos leem; só administradores editam ──
     match /editorias/{id} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
 
-    // Fotos das notícias em base64: qualquer visitante lê (as fotos aparecem
-    // no site, que é estático); só a equipe envia ou apaga.
-    // Leitores também enviam a própria foto de perfil (kind "avatar", pequena).
+    // ── Imagens (base64) ──────────────────────────────────────────
+    // Todos leem (as fotos aparecem no site). A equipe envia fotos de
+    // notícia; qualquer conta ativa envia a própria foto de perfil (pequena).
     match /imagens/{id} {
       allow read: if true;
-      allow delete: if isStaff();
-      allow create: if request.resource.data.data is string && (
-        (isStaff() && request.resource.data.data.size() < 900000) ||
-        (signedIn()
-          && request.resource.data.kind == 'avatar'
-          && request.resource.data.created_by == request.auth.uid
-          && request.resource.data.data.size() < 120000)
-      );
+      allow create: if signedIn() && !isDisabled()
+                    && request.resource.data.keys().hasOnly(['data', 'content_type', 'kind', 'created_by', 'width', 'height', 'size', 'created_at'])
+                    && request.resource.data.created_by == request.auth.uid
+                    && request.resource.data.content_type == 'image/jpeg'
+                    && request.resource.data.data is string
+                    && (
+                      (isStaff() && request.resource.data.kind in ['article', 'avatar']
+                        && request.resource.data.data.size() < 900000)
+                      ||
+                      (request.resource.data.kind == 'avatar'
+                        && request.resource.data.data.size() < 120000)
+                    );
       allow update: if false;
+      allow delete: if isStaff();
     }
 
-    // ── Assinatura digital e faturas ───────────────────────────
-    // Mensalidade padrão: quem está logado lê; só administradores alteram.
-    match /config/assinatura {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    // Uma assinatura por leitor (id = uid). O leitor assina sozinho: já nasce
-    // ativa, sem preço especial, com o dia de vencimento escolhido e a
-    // cobrança a partir do mês seguinte. Status e preço especial são da equipe.
-    function validSelfSubscription() {
-      let d = request.resource.data;
-      return d.status == 'ativa'
-        && d.custom_price_cents == null
-        && d.due_day is int && d.due_day >= 1 && d.due_day <= 28
-        && d.first_due_month is string;
-    }
-
-    match /assinaturas/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
-      allow create: if signedIn()
-                    && request.auth.uid == uid
-                    && validSelfSubscription();
-      allow update: if isStaff() || (
-        signedIn() && request.auth.uid == uid && (
-          // Reassinar depois de cancelada.
-          (resource.data.status == 'cancelada' && validSelfSubscription()) ||
-          // Ajustar os próprios dados sem mexer em status nem preço.
-          (request.resource.data.status == resource.data.status
-            && request.resource.data.custom_price_cents == resource.data.custom_price_cents)
-        )
-      );
-      allow delete: if isAdmin();
-    }
-
-    // Faturas: cada um lê as suas (consulta filtrada por uid); a equipe
-    // gera e dá baixa. A futura integração de pagamento grava pelo servidor.
-    match /faturas/{id} {
-      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isStaff());
-      allow create, update, delete: if isStaff();
-    }
-
-    // Notícias: qualquer visitante lê as publicadas; a equipe lê e edita tudo.
-    // Consultas públicas precisam filtrar por status == "published".
+    // ── Notícias ──────────────────────────────────────────────────
+    // Todos leem as publicadas (consultas públicas filtram status ==
+    // "published"); a equipe lê e edita tudo, inclusive rascunhos.
     match /articles/{id} {
       allow read: if resource.data.status == 'published' || isStaff();
       allow create, update, delete: if isStaff();
     }
 
-    // ── Comentários ─────────────────────────────────────────────
-    // Assinante ativo: o selo do comentário precisa bater com isto.
+    // ── Assinatura digital e faturas ─────────────────────────────
+    // Dados de cobrança (CPF, endereço, valores): só o dono e ADMINISTRADORES.
+
+    // "AAAA-MM" do mês seguinte a um instante.
+    function nextMonthOf(t) {
+      return t.month() == 12
+        ? string(t.year() + 1) + '-01'
+        : string(t.year()) + '-' + (t.month() < 9 ? '0' : '') + string(t.month() + 1);
+    }
+
+    // A primeira fatura é sempre do mês seguinte (UTC ou horário de Brasília,
+    // para não falhar na virada do mês).
+    function isNextMonth(value) {
+      return value == nextMonthOf(request.time)
+        || value == nextMonthOf(request.time - duration.value(3, 'h'));
+    }
+
+    // Assinatura feita pelo próprio leitor: ativa na hora, sem desconto,
+    // cobrança a partir do mês seguinte e dados no tamanho certo.
+    function isValidSelfSubscription() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'email', 'phone', 'address', 'document', 'status', 'due_day',
+                               'first_due_month', 'custom_price_cents', 'custom_price_note',
+                               'started_at', 'created_at', 'updated_at'])
+        && d.status == 'ativa'
+        && d.custom_price_cents == null
+        && d.custom_price_note == ''
+        && d.due_day is int && d.due_day >= 1 && d.due_day <= 28
+        && isNextMonth(d.first_due_month)
+        && d.email is string && d.email.lower() == myEmail()
+        && d.name is string && d.name.size() >= 3 && d.name.size() <= 120
+        && d.document is string && d.document.matches('^[0-9]{11}$')
+        && isShortText(d.phone, 30)
+        && isShortText(d.address, 300);
+    }
+
+    match /config/assinatura {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /assinaturas/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid && !isDisabled()
+                    && isValidSelfSubscription();
+      allow update: if isAdmin() || (
+        signedIn() && request.auth.uid == uid && !isDisabled() && (
+          // Assinar de novo depois de cancelada.
+          (resource.data.status == 'cancelada' && isValidSelfSubscription())
+          ||
+          // Atualizar contato/endereço (nunca vencimento, preço ou situação).
+          (onlyChanged(['phone', 'address', 'updated_at'])
+            && isShortText(request.resource.data.phone, 30)
+            && isShortText(request.resource.data.address, 300))
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Faturas: cada um lê as suas (consulta filtrada por uid); só
+    // administradores geram e dão baixa. A futura integração de pagamento
+    // grava pelo servidor (Admin SDK), que não passa por estas regras.
+    match /faturas/{id} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── Comentários ───────────────────────────────────────────────
     function isActiveSubscriber() {
       let path = /databases/$(database)/documents/assinaturas/$(request.auth.uid);
       return exists(path) && get(path).data.status == 'ativa';
+    }
+
+    function isPublishedArticle(articleId) {
+      let path = /databases/$(database)/documents/articles/$(articleId);
+      return exists(path) && get(path).data.status == 'published';
+    }
+
+    // Resposta: o "pai" é um comentário principal da mesma notícia.
+    function isValidParent(parentId, articleId) {
+      let path = /databases/$(database)/documents/comentarios/$(parentId);
+      return exists(path)
+        && get(path).data.parent_id == null
+        && get(path).data.article_id == articleId;
+    }
+
+    // Nome e foto do comentário são os do perfil (ninguém comenta "como" outro).
+    function isOwnIdentity(d) {
+      let profile = get(profilePath(request.auth.uid)).data;
+      let name = profile.get('name', '');
+      return d.author_name == (name == '' ? 'Leitor' : name)
+        && d.author_photo == profile.get('photo_url', '');
     }
 
     // Curtir/descurtir: muda só liked_by, acrescentando ou tirando o próprio uid.
@@ -148,42 +242,43 @@ service cloud.firestore {
       let before = resource.data.liked_by.toSet();
       let after = request.resource.data.liked_by.toSet();
       let me = [request.auth.uid].toSet();
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['liked_by'])
+      return onlyChanged(['liked_by'])
         && ((after.difference(before) == me && before.difference(after).size() == 0)
           || (before.difference(after) == me && after.difference(before).size() == 0));
-    }
-
-    // Total de respostas: só sobe ou desce de um em um.
-    function isReplyCountStep() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reply_count'])
-        && (request.resource.data.reply_count == resource.data.reply_count + 1
-          || request.resource.data.reply_count == resource.data.reply_count - 1);
     }
 
     // Apagar (suave): autor ou equipe; o texto some e o comentário fica marcado.
     function isSoftDelete() {
       return (resource.data.author_uid == request.auth.uid || isStaff())
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'text'])
+        && onlyChanged(['deleted', 'text'])
         && request.resource.data.deleted == true
         && request.resource.data.text == '';
     }
 
     match /comentarios/{id} {
       allow read: if true;
-      allow create: if signedIn()
+      allow create: if signedIn() && !isDisabled()
+                    && request.resource.data.keys().hasOnly(['article_id', 'parent_id', 'author_uid', 'author_name',
+                                                             'author_photo', 'author_subscriber', 'text', 'liked_by',
+                                                             'deleted', 'created_at'])
                     && request.resource.data.author_uid == request.auth.uid
+                    && isOwnIdentity(request.resource.data)
+                    && request.resource.data.author_subscriber == isActiveSubscriber()
                     && request.resource.data.text is string
                     && request.resource.data.text.size() > 0
                     && request.resource.data.text.size() <= 1000
-                    && request.resource.data.article_id is string
-                    && request.resource.data.liked_by.size() == 0
-                    && request.resource.data.reply_count == 0
+                    && request.resource.data.liked_by == []
                     && request.resource.data.deleted == false
-                    && request.resource.data.author_subscriber == isActiveSubscriber()
+                    && request.resource.data.created_at == request.time
+                    && request.resource.data.article_id is string
+                    && isPublishedArticle(request.resource.data.article_id)
                     && (request.resource.data.parent_id == null
-                        || exists(/databases/$(database)/documents/comentarios/$(request.resource.data.parent_id)));
-      allow update: if signedIn() && (isOwnLikeToggle() || isReplyCountStep() || isSoftDelete());
+                        || (request.resource.data.parent_id is string
+                            && isValidParent(request.resource.data.parent_id, request.resource.data.article_id)));
+      allow update: if signedIn() && !isDisabled() && (isOwnLikeToggle() || isSoftDelete());
       allow delete: if isStaff();
     }
+
+    // Qualquer outra coleção: acesso negado (padrão do Firestore).
   }
 }

@@ -4,12 +4,11 @@ import {
   collection,
   doc,
   getDocs,
-  increment,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
-  writeBatch,
 } from "firebase/firestore"
 
 import { getDb } from "@/lib/firebase/client"
@@ -23,6 +22,8 @@ import { actionError, type ActionResult } from "@/lib/utils/action-result"
  * - Resposta: parent_id = id do comentário principal (as respostas ficam num
  *   nível só, como no Instagram/TikTok; responder uma resposta usa @nome).
  * - Curtidas: lista de uids em `liked_by` (cada pessoa curte uma vez).
+ * - Nome e foto do autor são os do perfil (as regras conferem).
+ * - O total de respostas é contado a partir das respostas carregadas.
  * - author_subscriber: selo de assinante. As regras do banco conferem que
  *   ele só é verdadeiro se a assinatura de quem comenta estiver ativa.
  * - Apagar é "suave": o texto some e fica "comentário apagado" se houver
@@ -40,7 +41,6 @@ export type Comment = {
   author_subscriber: boolean
   text: string
   liked_by: string[]
-  reply_count: number
   deleted: boolean
   created_at: string
 }
@@ -56,7 +56,6 @@ function mapComment(id: string, data: Record<string, unknown>): Comment {
     author_subscriber: data.author_subscriber === true,
     text: (data.text as string) ?? "",
     liked_by: Array.isArray(data.liked_by) ? (data.liked_by as string[]) : [],
-    reply_count: typeof data.reply_count === "number" ? data.reply_count : 0,
     deleted: data.deleted === true,
     // Recém-criado ainda sem o horário do servidor: trata como "agora".
     created_at: tsToISO(data.created_at) || new Date().toISOString(),
@@ -101,16 +100,10 @@ export async function addComment(input: {
       author_subscriber: input.author.subscriber,
       text,
       liked_by: [] as string[],
-      reply_count: 0,
       deleted: false,
       created_at: serverTimestamp(),
     }
-    const batch = writeBatch(db)
-    batch.set(ref, data)
-    if (input.parentId) {
-      batch.update(doc(db, "comentarios", input.parentId), { reply_count: increment(1) })
-    }
-    await batch.commit()
+    await setDoc(ref, data)
     return {
       ok: true,
       message: input.parentId ? "Resposta publicada." : "Comentário publicado.",
@@ -135,13 +128,7 @@ export async function toggleLike(comment: Comment, uid: string, like: boolean): 
 /** Apaga (suave) o comentário; respostas apagadas descontam do total. */
 export async function deleteComment(comment: Comment): Promise<ActionResult> {
   try {
-    const db = getDb()
-    const batch = writeBatch(db)
-    batch.update(doc(db, "comentarios", comment.id), { deleted: true, text: "" })
-    if (comment.parent_id) {
-      batch.update(doc(db, "comentarios", comment.parent_id), { reply_count: increment(-1) })
-    }
-    await batch.commit()
+    await updateDoc(doc(getDb(), "comentarios", comment.id), { deleted: true, text: "" })
     return { ok: true, message: "Comentário apagado." }
   } catch (error) {
     return actionError(firestoreErrorMessage(error))
