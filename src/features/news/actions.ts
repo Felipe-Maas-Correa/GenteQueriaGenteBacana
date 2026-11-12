@@ -112,8 +112,10 @@ export async function saveArticle(
       updated_at: serverTimestamp(),
     })
     const privateRef = doc(db, "articles", id, "privado", "conteudo")
-    if (rest.access === "public") batch.delete(privateRef)
-    else batch.set(privateRef, { body: fullBody })
+    // Só mexe no texto restrito quando a notícia é (ou era) restrita.
+    const wasRestricted = (current.data().access ?? "public") !== "public"
+    if (rest.access !== "public") batch.set(privateRef, { body: fullBody })
+    else if (wasRestricted) batch.delete(privateRef)
     await batch.commit()
     return { ok: true, message: "Alterações salvas.", data: { id } }
   } catch (error) {
@@ -125,7 +127,10 @@ export async function deleteArticle(id: string): Promise<ActionResult> {
   try {
     const db = getDb()
     const batch = writeBatch(db)
-    batch.delete(doc(db, "articles", id, "privado", "conteudo"))
+    const current = await getDoc(doc(db, "articles", id))
+    if ((current.data()?.access ?? "public") !== "public") {
+      batch.delete(doc(db, "articles", id, "privado", "conteudo"))
+    }
     batch.delete(doc(db, "articles", id))
     await batch.commit()
     return { ok: true, message: "Notícia excluída." }
