@@ -43,7 +43,13 @@ export type Subscription = {
   email: string
   phone: string
   address: string
+  /** CPF (só dígitos) — necessário para Pix/boleto no futuro. */
+  document: string
   status: SubscriptionStatus
+  /** Dia do vencimento escolhido pelo assinante (1–28). */
+  due_day: number
+  /** Primeiro mês com fatura (AAAA-MM): sempre o mês seguinte à assinatura. */
+  first_due_month: string
   /** Preço especial para este assinante; null = mensalidade padrão. */
   custom_price_cents: number | null
   custom_price_note: string
@@ -112,7 +118,10 @@ function mapSubscription(uid: string, data: Record<string, unknown>): Subscripti
     email: (data.email as string) ?? "",
     phone: (data.phone as string) ?? "",
     address: (data.address as string) ?? "",
+    document: (data.document as string) ?? "",
     status: status === "ativa" || status === "cancelada" ? status : "pendente",
+    due_day: typeof data.due_day === "number" ? data.due_day : DEFAULT_CONFIG.due_day,
+    first_due_month: (data.first_due_month as string) ?? "",
     custom_price_cents:
       typeof data.custom_price_cents === "number" ? data.custom_price_cents : null,
     custom_price_note: (data.custom_price_note as string) ?? "",
@@ -134,17 +143,48 @@ export async function listSubscriptions(): Promise<Subscription[]> {
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
 }
 
-/** O leitor pede a assinatura (fica "pendente" até a equipe aprovar). */
-export async function requestSubscription(input: {
+/** Valida CPF (dígitos verificadores). */
+export function isValidCpf(value: string): boolean {
+  const cpf = value.replace(/\D/g, "")
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false
+  const digit = (length: number) => {
+    let sum = 0
+    for (let i = 0; i < length; i++) sum += Number(cpf[i]) * (length + 1 - i)
+    const rest = (sum * 10) % 11
+    return rest === 10 ? 0 : rest
+  }
+  return digit(9) === Number(cpf[9]) && digit(10) === Number(cpf[10])
+}
+
+/** Mês seguinte a hoje (AAAA-MM), no fuso de Brasília. */
+export function nextMonth(from = currentMonth()): string {
+  const [year, month] = from.split("-").map(Number)
+  return month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`
+}
+
+/**
+ * O leitor assina: a assinatura já nasce ATIVA (sem aprovação da equipe).
+ * A primeira fatura vence no mês seguinte, no dia que ele escolher.
+ */
+export async function subscribe(input: {
   uid: string
   name: string
   email: string
   phone: string
   address: string
+  document: string
+  due_day: number
 }): Promise<ActionResult> {
-  if (input.name.trim().length < 2) return actionError("Informe seu nome.")
+  if (input.name.trim().length < 3) return actionError("Informe seu nome completo.")
+  if (!isValidCpf(input.document)) return actionError("Informe um CPF válido.")
   if (input.phone.replace(/\D/g, "").length < 10) {
     return actionError("Informe um telefone com DDD.")
+  }
+  if (input.address.trim().length < 8) {
+    return actionError("Informe o endereço completo (rua, número, bairro e cidade).")
+  }
+  if (!Number.isInteger(input.due_day) || input.due_day < 1 || input.due_day > 28) {
+    return actionError("Escolha o dia do vencimento.")
   }
   try {
     await setDoc(doc(getDb(), "assinaturas", input.uid), {
@@ -152,16 +192,27 @@ export async function requestSubscription(input: {
       email: input.email,
       phone: input.phone.trim(),
       address: input.address.trim(),
-      status: "pendente",
+      document: input.document.replace(/\D/g, ""),
+      status: "ativa",
+      due_day: input.due_day,
+      first_due_month: nextMonth(),
       custom_price_cents: null,
       custom_price_note: "",
+      started_at: serverTimestamp(),
       created_at: serverTimestamp(),
       updated_at: serverTimestamp(),
     })
-    return { ok: true, message: "Pedido enviado! A equipe do jornal vai confirmar sua assinatura." }
+    return { ok: true, message: "Assinatura confirmada! Bem-vindo(a) ao Gente Querida, Gente Bacana." }
   } catch (error) {
     return actionError(firestoreErrorMessage(error))
   }
+}
+
+/** Data da primeira fatura (AAAA-MM-DD). */
+export function firstDueDate(subscription: Pick<Subscription, "first_due_month" | "due_day">): string {
+  return subscription.first_due_month
+    ? dueDateFor(subscription.first_due_month, subscription.due_day)
+    : ""
 }
 
 /** Equipe: aprovar, cancelar ou reativar. */
@@ -270,10 +321,22 @@ export async function generateInvoices(month: string): Promise<ActionResult<{ cr
       listInvoicesByMonth(month),
     ])
     const already = new Set(existing.map((invoice) => invoice.uid))
-    const active = subscriptions.filter((s) => s.status === "ativa" && !already.has(s.uid))
+    // Só quem está ativo, ainda sem fatura neste mês e cuja cobrança já
+    // começou (a primeira fatura é sempre do mês seguinte à assinatura).
+    const active = subscriptions.filter(
+      (s) =>
+        s.status === "ativa" &&
+        !already.has(s.uid) &&
+        (!s.first_due_month || s.first_due_month <= month)
+    )
 
     if (!active.length) {
-      return { ok: true, message: "Nenhuma fatura nova: todos os assinantes ativos já têm fatura deste mês.", data: { created: 0 } }
+      return {
+        ok: true,
+        message:
+          "Nenhuma fatura nova: os assinantes ativos já têm fatura deste mês ou só começam a pagar no mês seguinte.",
+        data: { created: 0 },
+      }
     }
     if (config.monthly_price_cents <= 0 && active.some((s) => s.custom_price_cents === null)) {
       return actionError("Defina o valor da mensalidade antes de gerar as faturas.")
@@ -287,7 +350,8 @@ export async function generateInvoices(month: string): Promise<ActionResult<{ cr
         email: subscription.email,
         reference_month: month,
         amount_cents: priceFor(subscription, config),
-        due_date: dueDateFor(month, config.due_day),
+        // Cada assinante paga no dia que escolheu; antigos usam o dia padrão.
+        due_date: dueDateFor(month, subscription.due_day || config.due_day),
         status: "aberta",
         paid_at: null,
         payment_provider: "",

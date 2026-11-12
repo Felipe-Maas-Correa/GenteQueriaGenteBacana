@@ -90,18 +90,30 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Uma assinatura por leitor (id = uid). O leitor pede (pendente) e pode
-    // atualizar telefone/endereço; status e preço especial são da equipe.
+    // Uma assinatura por leitor (id = uid). O leitor assina sozinho: já nasce
+    // ativa, sem preço especial, com o dia de vencimento escolhido e a
+    // cobrança a partir do mês seguinte. Status e preço especial são da equipe.
+    function validSelfSubscription() {
+      let d = request.resource.data;
+      return d.status == 'ativa'
+        && d.custom_price_cents == null
+        && d.due_day is int && d.due_day >= 1 && d.due_day <= 28
+        && d.first_due_month is string;
+    }
+
     match /assinaturas/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());
       allow create: if signedIn()
                     && request.auth.uid == uid
-                    && request.resource.data.status == 'pendente'
-                    && request.resource.data.custom_price_cents == null;
+                    && validSelfSubscription();
       allow update: if isStaff() || (
-        signedIn() && request.auth.uid == uid
-          && request.resource.data.status == resource.data.status
-          && request.resource.data.custom_price_cents == resource.data.custom_price_cents
+        signedIn() && request.auth.uid == uid && (
+          // Reassinar depois de cancelada.
+          (resource.data.status == 'cancelada' && validSelfSubscription()) ||
+          // Ajustar os próprios dados sem mexer em status nem preço.
+          (request.resource.data.status == resource.data.status
+            && request.resource.data.custom_price_cents == resource.data.custom_price_cents)
+        )
       );
       allow delete: if isAdmin();
     }

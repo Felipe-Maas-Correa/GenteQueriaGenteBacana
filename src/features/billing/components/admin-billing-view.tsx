@@ -321,7 +321,7 @@ function SubscriptionsTab({
                   <p className="text-sm text-muted-foreground">{s.email}</p>
                 </TableCell>
                 <TableCell className="hidden text-sm lg:table-cell">
-                  <p>{s.phone || "—"}</p>
+                  <p>{s.phone || "—"} · vence dia {s.due_day}</p>
                   <p className="line-clamp-1 text-muted-foreground">{s.address}</p>
                 </TableCell>
                 <TableCell>
@@ -343,7 +343,7 @@ function SubscriptionsTab({
                     {s.status === "pendente" ? (
                       <Button size="sm" disabled={pending} onClick={() => run(() => setSubscriptionStatus(s.uid, "ativa"))}>
                         <CheckIcon aria-hidden />
-                        Aprovar
+                        Aprovar pedido
                       </Button>
                     ) : null}
                     <DropdownMenu>
