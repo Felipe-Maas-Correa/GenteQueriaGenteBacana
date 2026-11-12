@@ -47,3 +47,6 @@ next-env.d.ts
 # chave da conta de serviço do Firebase (nunca versionar)
 *firebase-adminsdk*.json
 service-account*.json
+
+# cache do deploy do Firebase
+.firebase/
