@@ -41,8 +41,8 @@ export const PAGE_SIZE = 20
 
 type RawParams = Record<string, string | string[] | undefined>
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Id de documento do Firestore (letras e números).
+const ID_RE = /^[A-Za-z0-9_-]{1,128}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 function first(value: string | string[] | undefined): string | undefined {
@@ -72,7 +72,7 @@ export function parseSubscriberFilters(raw: RawParams): SubscriberFilters {
 
   return {
     q: get("q")?.slice(0, 120),
-    area: area && UUID_RE.test(area) ? area : undefined,
+    area: area && ID_RE.test(area) ? area : undefined,
     mes: intInRange(get("mes"), 1, 12),
     status: status === "active" || status === "inactive" ? status : undefined,
     vencDe: vencDe && DATE_RE.test(vencDe) ? vencDe : undefined,

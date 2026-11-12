@@ -21,7 +21,8 @@ export const subscriberSchema = z.object({
       const length = onlyDigits(value).length
       return length === 0 || length === 10 || length === 11
     }, "Informe o telefone com DDD (10 ou 11 dígitos)."),
-  area_id: z.uuid("Selecione uma área."),
+  // Id do documento da área no Firestore (não é UUID).
+  area_id: z.string().trim().min(1, "Selecione uma área."),
   due_date: z.iso.date("Informe a data de vencimento."),
   reference_month: z
     .number("Selecione o mês de referência.")
