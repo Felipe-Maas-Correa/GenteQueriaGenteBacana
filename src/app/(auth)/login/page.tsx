@@ -3,7 +3,8 @@ import Link from "next/link"
 import { Suspense } from "react"
 import { ArrowLeftIcon } from "lucide-react"
 
-import { Logo, LogoMark } from "@/components/shared/logo"
+import { AsciiNewspaper } from "@/components/shared/ascii-newspaper"
+import { Logo } from "@/components/shared/logo"
 import { Reveal } from "@/components/shared/reveal"
 import { SetupNotice } from "@/components/shared/setup-notice"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -20,23 +21,25 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-dvh flex-1 lg:grid-cols-[1.1fr_1fr]">
-      <aside className="relative hidden overflow-hidden bg-contraste p-12 text-contraste-foreground lg:flex lg:flex-col lg:justify-between">
-        <LogoMark className="pointer-events-none absolute -right-24 -bottom-20 h-[28rem] opacity-[0.07]" />
-        <Logo size="md" />
-        <Reveal className="relative max-w-lg space-y-5">
+      <aside className="relative hidden h-dvh overflow-hidden bg-contraste p-12 text-contraste-foreground lg:sticky lg:top-0 lg:flex lg:flex-col">
+        <Logo size="md" className="relative" />
+
+        {/* Página de jornal em caracteres, girando (decorativa). */}
+        <div className="relative -mx-12 my-6 min-h-0 flex-1 [mask-image:radial-gradient(closest-side,black_70%,transparent)]">
+          <AsciiNewspaper />
+        </div>
+
+        <Reveal className="relative max-w-lg space-y-4">
           <p className="type-overline text-contraste-primary">Painel da redação</p>
-          <p className="type-h1 text-contraste-foreground">
+          <p className="type-h2 text-contraste-foreground">
             Quem faz o jornal chegar em cada casa{" "}
             <em className="font-normal text-contraste-primary">começa por aqui.</em>
           </p>
-          <p className="type-body text-contraste-muted-foreground">
-            Assinantes, áreas de entrega e etiquetas — organizados em um só
-            lugar.
+          <p className="type-small text-contraste-muted-foreground">
+            Notícias, assinantes e entregas — organizados em um só lugar. Acesso
+            restrito à equipe do jornal.
           </p>
         </Reveal>
-        <p className="type-caption relative font-normal text-contraste-muted-foreground">
-          Acesso restrito à equipe do jornal.
-        </p>
       </aside>
 
       <main className="flex flex-col px-6 py-8 sm:px-10">
