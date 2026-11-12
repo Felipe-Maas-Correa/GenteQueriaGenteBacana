@@ -1,4 +1,5 @@
 import {
+  BookOpenIcon,
   LayoutDashboardIcon,
   LayoutTemplateIcon,
   MapPinIcon,
@@ -57,6 +58,7 @@ export const adminNavigation: AdminNavGroup[] = [
     label: "Sistema",
     items: [
       { label: "Equipe", href: "/admin/equipe", icon: ShieldCheckIcon },
+      { label: "Leitores", href: "/admin/leitores", icon: BookOpenIcon },
       { label: "Configurações", href: "/admin/configuracoes", icon: SettingsIcon },
     ],
   },
@@ -74,6 +76,7 @@ export const adminSegmentLabels: Record<string, string> = {
   nova: "Nova notícia",
   "pagina-inicial": "Página inicial",
   equipe: "Equipe",
+  leitores: "Leitores",
   editar: "Editar",
   editorias: "Editorias",
   "guia-de-estilo": "Guia de Estilo",

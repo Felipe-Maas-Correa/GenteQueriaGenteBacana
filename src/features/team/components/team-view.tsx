@@ -35,7 +35,7 @@ import { AddMemberDialog } from "./add-member-dialog"
 const roleDescriptions: Record<UserRole, string> = {
   admin: "Tudo, inclusive liberar acessos.",
   editor: "Notícias, página inicial, assinantes e áreas.",
-  reader: "Só lê as notícias. Sem acesso ao painel.",
+  reader: "Volta a ser leitor, sem acesso ao painel.",
 }
 
 export function TeamView() {
@@ -43,7 +43,11 @@ export function TeamView() {
   const configured = status !== "unconfigured"
   const isAdmin = user?.role === "admin"
   const { data, loading, error, reload } = useAsync(
-    () => (configured && isAdmin ? listProfiles() : Promise.resolve(null)),
+    () =>
+      configured && isAdmin
+        ? // Leitores ficam na aba Leitores; aqui só quem usa o painel.
+          listProfiles().then((all) => all.filter((p) => p.role !== "reader"))
+        : Promise.resolve(null),
     [configured, isAdmin]
   )
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -66,7 +70,11 @@ export function TeamView() {
     const result = await updateProfile(id, { role })
     setSavingId(null)
     if (result.ok) {
-      toast.success(`Acesso alterado para ${roleLabels[role].toLowerCase()}.`)
+      toast.success(
+        role === "reader"
+          ? "Removido da equipe. A conta continua como leitor."
+          : `Acesso alterado para ${roleLabels[role].toLowerCase()}.`
+      )
       reload()
     } else {
       toast.error(result.message)
@@ -77,8 +85,8 @@ export function TeamView() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="type-small max-w-xl text-muted-foreground">
-          Cadastre novos membros pelo botão ao lado. Quem cria conta pelo site entra
-          como <strong>leitor</strong>; para dar acesso ao painel, mude o papel na lista.
+          Quem usa o painel do jornal. Cadastre novos membros pelo botão ao lado ou
+          promova alguém que já tem conta em <strong>Sistema › Leitores</strong>.
         </p>
         <AddMemberDialog onAdded={reload} />
       </div>
@@ -122,7 +130,7 @@ export function TeamView() {
                         {(Object.keys(roleLabels) as UserRole[]).map((role) => (
                           <SelectItem key={role} value={role}>
                             <span>
-                              {roleLabels[role]}
+                              {role === "reader" ? "Remover da equipe" : roleLabels[role]}
                               <span className="block text-xs text-muted-foreground">
                                 {roleDescriptions[role]}
                               </span>
