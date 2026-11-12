@@ -209,8 +209,9 @@ export function ArticleForm({ article }: { article?: Article }) {
           <Field label="Título" required error={errors.title?.message}>
             {(field) => (
               <Textarea
-                rows={2}
-                className="type-h3 resize-none"
+                rows={1}
+                placeholder="Escreva o título da notícia"
+                className="min-h-0 resize-none py-2.5 font-display text-xl leading-snug font-medium [field-sizing:content]"
                 {...field}
                 {...titleField}
                 onChange={(event) => {
@@ -236,7 +237,7 @@ export function ArticleForm({ article }: { article?: Article }) {
           <Field
             label="Texto da notícia"
             error={errors.body?.message}
-            hint="Use a barra para negrito, intertítulos, citações, listas, links e fotos no meio do texto."
+            hint="Para pôr uma foto no meio do texto: clique onde ela deve ficar e use Inserir foto (ou cole/arraste a imagem)."
           >
             {(field) => (
               <Controller

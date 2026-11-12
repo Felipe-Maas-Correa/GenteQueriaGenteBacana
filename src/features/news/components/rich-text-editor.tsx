@@ -64,6 +64,27 @@ function ToolbarButton({
   )
 }
 
+/** Envia a foto e a coloca na posição informada (ou onde está o cursor). */
+async function uploadAndInsert(editor: Editor, file: File, position?: number) {
+  const toastId = toast.loading("Enviando foto…")
+  const result = await uploadArticleImage(file)
+  if (result.ok && result.data) {
+    const chain = editor.chain().focus()
+    if (position !== undefined) {
+      chain.insertContentAt(position, { type: "image", attrs: { src: result.data.url, alt: "" } }).run()
+    } else {
+      chain.setImage({ src: result.data.url, alt: "" }).run()
+    }
+    toast.success("Foto inserida no texto.", { id: toastId })
+  } else {
+    toast.error(result.message, { id: toastId })
+  }
+}
+
+function imageFiles(list: FileList | null | undefined): File[] {
+  return Array.from(list ?? []).filter((file) => file.type.startsWith("image/"))
+}
+
 function Toolbar({ editor }: { editor: Editor }) {
   const fileInput = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -103,14 +124,9 @@ function Toolbar({ editor }: { editor: Editor }) {
   const insertImage = async (file: File | undefined) => {
     if (!file) return
     setUploading(true)
-    const result = await uploadArticleImage(file)
+    await uploadAndInsert(editor, file)
     setUploading(false)
     if (fileInput.current) fileInput.current.value = ""
-    if (result.ok && result.data) {
-      editor.chain().focus().setImage({ src: result.data.url, alt: "" }).run()
-    } else {
-      toast.error(result.message)
-    }
   }
 
   const sep = <span className="mx-1 h-5 w-px bg-border" aria-hidden />
@@ -119,7 +135,7 @@ function Toolbar({ editor }: { editor: Editor }) {
     <div
       role="toolbar"
       aria-label="Formatação do texto"
-      className="sticky top-(--topbar-h) z-10 flex flex-wrap items-center gap-0.5 border-b bg-card/95 p-1.5 backdrop-blur"
+      className="flex flex-wrap items-center gap-0.5 border-b bg-muted/60 p-1.5"
     >
       <ToolbarButton label="Negrito (Ctrl+B)" active={state.bold} onClick={() => editor.chain().focus().toggleBold().run()}>
         <BoldIcon />
@@ -163,9 +179,17 @@ function Toolbar({ editor }: { editor: Editor }) {
       >
         <UnlinkIcon />
       </ToolbarButton>
-      <ToolbarButton label="Inserir foto no texto" disabled={uploading} onClick={() => fileInput.current?.click()}>
+      <button
+        type="button"
+        title="Inserir foto no meio do texto (também dá para colar ou arrastar a imagem)"
+        disabled={uploading}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => fileInput.current?.click()}
+        className="ml-1 inline-flex h-8 items-center gap-1.5 rounded-md border bg-background px-2.5 text-sm font-medium outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60 [&_svg]:size-4"
+      >
         {uploading ? <Loader2Icon className="animate-spin" /> : <ImagePlusIcon />}
-      </ToolbarButton>
+        {uploading ? "Enviando…" : "Inserir foto"}
+      </button>
       <input
         ref={fileInput}
         type="file"
@@ -225,11 +249,27 @@ export function RichTextEditor({ id, value, onChange, invalid, describedBy }: Ri
         ...(invalid ? { "aria-invalid": "true" } : {}),
         class: cn(
           articleProseClass,
-          "min-h-96 px-5 py-4 font-serif outline-none [&_.is-editor-empty:first-child]:before:pointer-events-none [&_.is-editor-empty:first-child]:before:float-left [&_.is-editor-empty:first-child]:before:h-0 [&_.is-editor-empty:first-child]:before:text-muted-foreground [&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]"
+          "min-h-96 px-5 py-4 font-serif outline-none [&_img.ProseMirror-selectednode]:ring-3 [&_img.ProseMirror-selectednode]:ring-ring/50 [&_.is-editor-empty:first-child]:before:pointer-events-none [&_.is-editor-empty:first-child]:before:float-left [&_.is-editor-empty:first-child]:before:h-0 [&_.is-editor-empty:first-child]:before:text-muted-foreground [&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]"
         ),
       },
     },
     onUpdate: ({ editor: e }) => onChange(e.getHTML()),
+    onCreate: ({ editor: e }) => {
+      const dom = e.view.dom
+      dom.addEventListener("paste", (event) => {
+        const files = imageFiles(event.clipboardData?.files)
+        if (!files.length) return
+        event.preventDefault()
+        files.forEach((file) => void uploadAndInsert(e, file))
+      })
+      dom.addEventListener("drop", (event) => {
+        const files = imageFiles(event.dataTransfer?.files)
+        if (!files.length) return
+        event.preventDefault()
+        const position = e.view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos
+        files.forEach((file) => void uploadAndInsert(e, file, position))
+      })
+    },
   })
 
   return (
