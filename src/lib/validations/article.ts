@@ -45,8 +45,12 @@ export const articleSchema = z.object({
     .string()
     .trim()
     .refine(
-      (value) => value === "" || /^https?:\/\//.test(value),
-      "Informe um endereço de imagem válido (https://…)."
+      // Endereço externo (https://…) ou foto enviada pelo painel (/api/imagens/…).
+      (value) =>
+        value === "" ||
+        /^https?:\/\//.test(value) ||
+        /^\/api\/imagens\/[A-Za-z0-9]+$/.test(value),
+      "Informe um endereço de imagem válido (https://…) ou use Enviar foto."
     ),
   image_caption: z
     .string()

@@ -298,17 +298,26 @@ export function ArticleForm({ article }: { article?: Article }) {
               {values.image_url ? "Trocar foto" : "Enviar foto"}
             </Button>
             <span className="type-caption text-muted-foreground">
-              ou cole o endereço de uma imagem abaixo
+              {values.image_url.startsWith("/api/imagens/")
+                ? "Foto enviada do seu computador ou celular."
+                : "Escolha uma foto do computador ou da galeria do celular, ou cole o endereço de uma imagem abaixo."}
             </span>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Endereço da imagem" error={errors.image_url?.message}>
-              {(field) => (
-                <Input placeholder="https://…" {...field} {...register("image_url")} />
-              )}
-            </Field>
-            <Field label="Legenda / crédito" error={errors.image_caption?.message}>
+          <div className="grid items-start gap-4 sm:grid-cols-2">
+            {/* Foto enviada pelo painel: o endereço interno não precisa aparecer. */}
+            {values.image_url.startsWith("/api/imagens/") ? null : (
+              <Field label="Endereço da imagem" error={errors.image_url?.message}>
+                {(field) => (
+                  <Input placeholder="https://…" {...field} {...register("image_url")} />
+                )}
+              </Field>
+            )}
+            <Field
+              label="Legenda / crédito"
+              error={errors.image_caption?.message}
+              className={values.image_url.startsWith("/api/imagens/") ? "sm:col-span-2" : undefined}
+            >
               {(field) => <Input {...field} {...register("image_caption")} />}
             </Field>
           </div>
