@@ -81,16 +81,19 @@ export function ArticleImage({
       {slides.length > 1 ? (
         // Capa em carrossel: as fotos se alternam sozinhas no cartão.
         slides.map((src, index) => (
-          <StoredImage
+          <div
             key={`${src}-${index}`}
-            src={src}
-            alt={index === 0 ? article.image_caption || "" : ""}
             className={cn(
-              "absolute inset-0 size-full object-cover transition-opacity duration-1000",
-              index === current ? "opacity-100" : "opacity-0",
-              imgClassName
+              "absolute inset-0 transition-opacity duration-1000",
+              index === current ? "opacity-100" : "opacity-0"
             )}
-          />
+          >
+            <StoredImage
+              src={src}
+              alt={index === 0 ? article.image_caption || "" : ""}
+              className={cn("size-full object-cover", imgClassName)}
+            />
+          </div>
         ))
       ) : article.image_url ? (
         // Fotos do Firestore (enviadas pelo painel) ou endereços externos.
