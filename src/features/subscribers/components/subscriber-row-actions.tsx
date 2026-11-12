@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import { deleteSubscriber } from "../actions"
+import { routes } from "@/lib/routes"
 
 /** Menu de ações de um assinante na listagem. */
 export function SubscriberRowActions({
@@ -53,7 +54,7 @@ export function SubscriberRowActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem asChild>
-            <Link href={`/admin/assinantes/${id}`}>
+            <Link href={routes.editSubscriber(id)}>
               <PencilIcon aria-hidden />
               Editar
             </Link>

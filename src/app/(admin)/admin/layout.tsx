@@ -7,10 +7,6 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-// O painel é uma área autenticada renderizada no cliente (Firebase Auth +
-// Firestore no navegador), então não é pré-renderizado estaticamente.
-export const instant = false
-
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   return <AdminShell>{children}</AdminShell>
 }

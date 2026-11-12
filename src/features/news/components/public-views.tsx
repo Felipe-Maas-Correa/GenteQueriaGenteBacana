@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { ArrowLeftIcon, NewspaperIcon, SearchXIcon } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
 
 import { articleProseClass, bodyToHtml, sanitizeBody } from "../article-body"
+import { resolveImagesInHtml } from "../image-source"
 
 import {
   getPublishedArticle,
@@ -139,7 +141,10 @@ export function NewsIndex() {
  * tela, então nenhum script ou atributo perigoso é executado.
  */
 function ArticleBody({ body }: { body: string }) {
-  const { data: html } = useAsync(() => sanitizeBody(bodyToHtml(body)), [body])
+  const { data: html } = useAsync(
+    async () => resolveImagesInHtml(await sanitizeBody(bodyToHtml(body))),
+    [body]
+  )
 
   if (html === null) {
     return (
@@ -271,4 +276,10 @@ export function ArticleReader({ slug }: { slug: string }) {
       ) : null}
     </article>
   )
+}
+
+/** Lê ?slug= da URL (página /noticia). */
+export function ArticleReaderFromQuery() {
+  const slug = useSearchParams().get("slug") ?? ""
+  return <ArticleReader slug={slug} />
 }

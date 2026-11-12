@@ -137,7 +137,8 @@ export async function saveHomeLayout(
  *
  * A foto é reduzida no navegador e gravada em base64 na coleção `imagens` do
  * Firestore (limite de 1 MiB por documento). A notícia guarda só o endereço
- * /api/imagens/{id}; a rota do servidor entrega a imagem com cache longo.
+ * /api/imagens/{id}; o navegador busca a foto no Firestore ao exibir
+ * (veja image-source.tsx).
  */
 const MAX_SIDE = 1600
 // Base64 cresce ~33%: 700 KB de base64 ≈ 520 KB de imagem, bem abaixo de 1 MiB.

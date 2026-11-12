@@ -75,14 +75,7 @@ Qualquer pessoa pode criar uma conta pelo botão **Criar conta** do site; ela na
 
 ### E-mail de redefinição de senha
 
-O Firebase não permite editar o modelo de e-mail neste projeto, então o site envia o próprio e-mail (visual do jornal, botão “Redefinir senha”, link para `/redefinir-senha`). Fluxo: `POST /api/auth/redefinir-senha` → Firebase Admin gera o código → Resend envia o e-mail.
-
-1. **Conta de serviço:** Console do Firebase › Configurações do projeto › *Contas de serviço* › **Gerar nova chave privada**. Do arquivo `.json` baixado, copie `client_email` e `private_key` para `FIREBASE_ADMIN_CLIENT_EMAIL` e `FIREBASE_ADMIN_PRIVATE_KEY` no `.env.local` (a chave entre aspas, em uma linha). **Não suba esse arquivo para o GitHub** e apague-o depois de copiar.
-2. **Resend:** crie uma conta em resend.com, gere uma *API Key* e coloque em `RESEND_API_KEY`.
-3. **Remetente:** sem domínio verificado, `EMAIL_FROM` usa `onboarding@resend.dev` e só entrega para o e-mail dono da conta Resend (bom para testar). Para enviar a qualquer leitor, verifique o domínio do jornal no Resend e use, por exemplo, `Gente Querida, Gente Bacana <nao-responda@seudominio.com.br>`.
-4. Reinicie o `npm run dev`.
-
-Sem essas variáveis, o site continua funcionando com o e-mail padrão do Firebase. O modelo HTML também está em [`docs/email-redefinir-senha.html`](docs/email-redefinir-senha.html).
+O site é estático (Firebase Hosting gratuito), então usa o e-mail padrão do Firebase, em português. O Firebase não permite editar esse modelo neste projeto. O modelo próprio do jornal está guardado em [`docs/email-redefinir-senha.html`](docs/email-redefinir-senha.html) para quando o site tiver um servidor (plano Blaze ou Vercel).
 
 ### Coleções do Firestore
 
@@ -152,6 +145,19 @@ Assinantes com a opção "Gerar etiqueta" desativada ficam fora do documento. No
 - **Imagens grandes:** as fotos ficam em base64 no Firestore (até ~500 KB cada, gratuito). Para muito volume, migrar para Cloudinary ou Firebase Storage (plano Blaze).
 - **Gestão de usuários pelo painel** — por enquanto feita no Console do Firebase (passos acima).
 - **Dados institucionais** (contato, endereço, redes sociais, editorias definitivas) — aguardam definição dos responsáveis pelo jornal; ver `src/lib/site.ts`.
+
+## Publicação (Firebase Hosting, gratuito)
+
+O `next.config.ts` usa `output: "export"`: `npm run build` gera a pasta `out/` com o site estático, publicada no Firebase Hosting.
+
+```bash
+npm run build
+npx firebase-tools deploy --only hosting,firestore:rules
+```
+
+Link: https://gentequeridagentebanca.web.app — para testar `out/` localmente: `node scripts/serve-out.mjs`.
+
+Como não há servidor, as páginas com conteúdo do banco usam parâmetros (`/noticia?slug=…`, `/admin/noticias/editar?id=…`), as fotos são lidas direto do Firestore e o cadastro de membros roda no navegador.
 
 ## Publicação (Vercel)
 

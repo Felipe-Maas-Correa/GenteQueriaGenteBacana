@@ -38,9 +38,11 @@ import type { Article } from "@/types/database"
 
 import { deleteArticle, saveArticle, uploadArticleImage } from "../actions"
 import { isEmptyBody } from "../article-body"
+import { StoredImage } from "../image-source"
 import { ArticleCard, articleHref } from "./article-card"
 import { CardSizePicker, SwitchRow } from "./card-controls"
 import { RichTextEditor } from "./rich-text-editor"
+import { routes } from "@/lib/routes"
 
 const LIST_PATH = "/admin/noticias"
 
@@ -148,7 +150,7 @@ export function ArticleForm({ article }: { article?: Article }) {
           )
           reset({ ...input, status })
           if (!article && result.data) {
-            router.replace(`/admin/noticias/${result.data.id}`)
+            router.replace(routes.editArticle(result.data.id))
           } else {
             router.refresh()
           }
@@ -260,10 +262,10 @@ export function ArticleForm({ article }: { article?: Article }) {
         <Panel title="Foto principal">
           {values.image_url ? (
             <figure className="relative overflow-hidden rounded-md border">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <StoredImage
                 src={values.image_url}
                 alt="Prévia da foto"
+                loading="eager"
                 className="aspect-[16/9] w-full object-cover"
               />
               <Button
@@ -404,7 +406,7 @@ export function ArticleForm({ article }: { article?: Article }) {
             label="Endereço (URL)"
             required
             error={errors.slug?.message}
-            hint={`/noticias/${values.slug || "…"}`}
+            hint={routes.article(values.slug || "…")}
           >
             {(field) => {
               const slugField = register("slug")

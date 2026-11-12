@@ -21,6 +21,7 @@ import { monthLabel } from "@/lib/utils/months"
 import type { SubscriberListItem } from "../queries"
 import { DueDate, SubscriberStatusBadge } from "./status-badge"
 import { SubscriberRowActions } from "./subscriber-row-actions"
+import { routes } from "@/lib/routes"
 
 type SubscribersListProps = {
   items: SubscriberListItem[]
@@ -73,7 +74,7 @@ export function SubscribersList({ items, today, onChanged }: SubscribersListProp
                 <TableCell className="max-w-72">
                   <span className="flex items-center gap-1.5">
                     <Link
-                      href={`/admin/assinantes/${subscriber.id}`}
+                      href={routes.editSubscriber(subscriber.id)}
                       className="truncate rounded-sm font-medium outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/40"
                     >
                       {subscriber.name}
@@ -134,7 +135,7 @@ export function SubscribersList({ items, today, onChanged }: SubscribersListProp
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 space-y-1.5">
                 <Link
-                  href={`/admin/assinantes/${subscriber.id}`}
+                  href={routes.editSubscriber(subscriber.id)}
                   className="type-h4 block rounded-sm outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/40"
                 >
                   {subscriber.name}

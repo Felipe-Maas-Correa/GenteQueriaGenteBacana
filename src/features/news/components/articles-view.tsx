@@ -36,6 +36,7 @@ import type { Article } from "@/types/database"
 
 import { listAllArticles } from "../queries"
 import { ArticleImage } from "./article-card"
+import { routes } from "@/lib/routes"
 
 type Situation = "published" | "scheduled" | "draft"
 type StatusFilter = "all" | Situation
@@ -287,7 +288,7 @@ export function ArticlesView() {
                     />
                     <div className="min-w-0">
                       <Link
-                        href={`/admin/noticias/${article.id}`}
+                        href={routes.editArticle(article.id)}
                         className="line-clamp-2 font-medium outline-none after:absolute after:inset-0 hover:text-brand focus-visible:underline"
                       >
                         {article.title}

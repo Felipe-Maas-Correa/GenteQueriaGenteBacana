@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { SearchXIcon } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
@@ -49,4 +50,10 @@ export function EditSubscriberView({ id }: { id: string }) {
   }
 
   return <SubscriberForm areas={data.areas} subscriber={data.subscriber} />
+}
+
+/** Lê ?id= da URL (página /admin/assinantes/editar). */
+export function EditSubscriberFromQuery() {
+  const id = useSearchParams().get("id") ?? ""
+  return <EditSubscriberView id={id} />
 }

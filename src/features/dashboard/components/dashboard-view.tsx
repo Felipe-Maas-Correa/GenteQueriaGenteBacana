@@ -33,6 +33,7 @@ import {
   MonthDistribution,
 } from "./distribution-charts"
 import { StatCard } from "./stat-card"
+import { routes } from "@/lib/routes"
 
 export function DashboardView() {
   const { status } = useAuth()
@@ -159,7 +160,7 @@ export function DashboardView() {
               {upcoming.map((subscriber) => (
                 <li key={subscriber.id}>
                   <Link
-                    href={`/admin/assinantes/${subscriber.id}`}
+                    href={routes.editSubscriber(subscriber.id)}
                     className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-md py-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/40 sm:px-2"
                   >
                     <span className="min-w-0">

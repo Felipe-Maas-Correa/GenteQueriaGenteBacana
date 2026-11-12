@@ -28,6 +28,7 @@ import { saveHomeLayout } from "../actions"
 import { byHomeOrder, listAllArticles } from "../queries"
 import { ArticleImage, HomeGrid } from "./article-card"
 import { CardSizePicker } from "./card-controls"
+import { routes } from "@/lib/routes"
 
 export function HomeLayoutView() {
   const { status } = useAuth()
@@ -190,7 +191,7 @@ function HomeLayoutEditor({
                         <ArrowDownIcon aria-hidden />
                       </Button>
                       <Button asChild size="icon-sm" variant="ghost" aria-label="Editar notícia">
-                        <Link href={`/admin/noticias/${article.id}`}>
+                        <Link href={routes.editArticle(article.id)}>
                           <PencilIcon aria-hidden />
                         </Link>
                       </Button>

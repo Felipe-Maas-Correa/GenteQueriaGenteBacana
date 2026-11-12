@@ -8,9 +8,12 @@ import { cn } from "@/lib/utils"
 import type { Article, CardSize } from "@/types/database"
 
 import { ArticleVisual } from "./article-visual"
+import { routes } from "@/lib/routes"
+
+import { StoredImage } from "../image-source"
 
 export function articleHref(article: Pick<Article, "slug">) {
-  return `/noticias/${article.slug}`
+  return routes.article(article.slug)
 }
 
 /** Chapéu (rótulo editorial) + editoria. */
@@ -60,13 +63,10 @@ export function ArticleImage({
   return (
     <div className={cn("relative overflow-hidden bg-muted", className)}>
       {article.image_url ? (
-        // Fotos vêm de /api/imagens (Firestore) ou de endereços externos colados no
-        // painel; <img> evita configurar cada domínio no next/image.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        // Fotos do Firestore (enviadas pelo painel) ou endereços externos.
+        <StoredImage
           src={article.image_url}
           alt={article.image_caption || ""}
-          loading="lazy"
           className={cn("size-full object-cover", imgClassName)}
         />
       ) : (

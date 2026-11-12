@@ -1,15 +1,12 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 
 import { PageHeader } from "@/components/shared/page-header"
-import { EditSubscriberView } from "@/features/subscribers/components/edit-subscriber-view"
+import { EditSubscriberFromQuery } from "@/features/subscribers/components/edit-subscriber-view"
 
 export const metadata: Metadata = { title: "Editar assinante" }
 
-export default async function EditSubscriberPage({
-  params,
-}: PageProps<"/admin/assinantes/[id]">) {
-  const { id } = await params
-
+export default function EditSubscriberPage() {
   return (
     <div className="space-y-8">
       <PageHeader
@@ -17,7 +14,9 @@ export default async function EditSubscriberPage({
         title="Editar assinante"
         description="Atualize os dados do cadastro. Campos marcados com * são obrigatórios."
       />
-      <EditSubscriberView id={id} />
+      <Suspense>
+        <EditSubscriberFromQuery />
+      </Suspense>
     </div>
   )
 }

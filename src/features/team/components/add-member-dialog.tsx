@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { CheckIcon, CopyIcon, MailCheckIcon, UserPlusIcon } from "lucide-react"
+import { MailCheckIcon, UserPlusIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { getFirebaseAuth } from "@/lib/firebase/client"
 import { cn } from "@/lib/utils"
+
+import { addTeamMember } from "../add-member"
 
 type Role = "admin" | "editor"
 
@@ -27,7 +28,7 @@ const roles: { value: Role; title: string; description: string }[] = [
   { value: "editor", title: "Editor", description: "Notícias, página inicial, assinantes e áreas." },
 ]
 
-type Result = { message: string; link?: string; emailSent?: boolean; existed?: boolean }
+type Result = { message: string; emailSent?: boolean; existed?: boolean }
 
 /** Botão "Adicionar membro": cria a conta e envia o convite para criar a senha. */
 export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
@@ -37,7 +38,6 @@ export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
   const [role, setRole] = useState<Role>("admin")
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
-  const [copied, setCopied] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const reset = () => {
@@ -46,7 +46,6 @@ export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
     setRole("admin")
     setError(null)
     setResult(null)
-    setCopied(false)
   }
 
   const submit = () => {
@@ -54,33 +53,14 @@ export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
     if (name.trim().length < 2) return setError("Informe o nome.")
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Informe um e-mail válido.")
     startTransition(async () => {
-      try {
-        const token = await getFirebaseAuth().currentUser?.getIdToken()
-        if (!token) return setError("Sua sessão expirou. Faça login novamente.")
-        const response = await fetch("/api/equipe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ name: name.trim(), email: email.trim(), role }),
-        })
-        const body = (await response.json().catch(() => ({}))) as Result & { ok?: boolean }
-        if (!response.ok || !body.ok) {
-          return setError(body.message ?? "Não foi possível cadastrar. Tente novamente.")
-        }
-        setResult(body)
-        toast.success(body.message)
-        onAdded()
-      } catch {
-        setError("Falha de conexão. Tente novamente.")
-      }
+      const outcome = await addTeamMember({ name, email, role })
+      if (!outcome.ok) return setError(outcome.message)
+      setResult({ message: outcome.message, ...outcome.data })
+      toast.success(outcome.message)
+      onAdded()
     })
   }
 
-  const copyLink = async () => {
-    if (!result?.link) return
-    await navigator.clipboard.writeText(result.link)
-    setCopied(true)
-    toast.success("Link copiado.")
-  }
 
   return (
     <Dialog
@@ -106,26 +86,19 @@ export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
               <DialogDescription>{result.message}</DialogDescription>
             </DialogHeader>
 
-            {result.link ? (
+            {result.existed ? null : (
               <Alert variant={result.emailSent ? "success" : "warning"}>
                 <MailCheckIcon aria-hidden />
                 <AlertTitle>
-                  {result.emailSent ? "Convite enviado por e-mail" : "Envie o link manualmente"}
+                  {result.emailSent ? "E-mail enviado" : "E-mail não enviado"}
                 </AlertTitle>
                 <AlertDescription>
                   {result.emailSent
-                    ? "Se não chegar (veja o spam), copie o link abaixo e mande por WhatsApp."
-                    : "Mande este link para a pessoa criar a senha. Ele vale por 1 hora."}
+                    ? "A pessoa recebe o e-mail “Redefinir senha” do Firebase para criar a senha (peça para olhar o spam). Depois é só entrar no site."
+                    : "Peça para a pessoa abrir o login e usar “Esqueci minha senha” com este e-mail."}
                 </AlertDescription>
               </Alert>
-            ) : null}
-
-            {result.link ? (
-              <Button variant="outline" onClick={copyLink}>
-                {copied ? <CheckIcon aria-hidden /> : <CopyIcon aria-hidden />}
-                {copied ? "Link copiado" : "Copiar link de criação de senha"}
-              </Button>
-            ) : null}
+            )}
 
             <DialogFooter>
               <Button variant="ghost" onClick={reset}>

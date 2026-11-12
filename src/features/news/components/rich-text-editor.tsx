@@ -1,7 +1,15 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react"
+import {
+  EditorContent,
+  NodeViewWrapper,
+  ReactNodeViewRenderer,
+  useEditor,
+  useEditorState,
+  type Editor,
+  type NodeViewProps,
+} from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Image from "@tiptap/extension-image"
 import Placeholder from "@tiptap/extension-placeholder"
@@ -29,6 +37,7 @@ import { cn } from "@/lib/utils"
 
 import { uploadArticleImage } from "../actions"
 import { articleProseClass, bodyToHtml } from "../article-body"
+import { StoredImage } from "../image-source"
 
 
 function ToolbarButton({
@@ -63,6 +72,26 @@ function ToolbarButton({
     </button>
   )
 }
+
+/** Mostra as fotos internas (Firestore) dentro do editor. */
+function ImageView({ node, selected }: NodeViewProps) {
+  return (
+    <NodeViewWrapper as="span" className="block" data-drag-handle>
+      <StoredImage
+        src={node.attrs.src as string}
+        alt={(node.attrs.alt as string) ?? ""}
+        loading="eager"
+        className={cn("my-6 block w-full rounded-sm", selected && "ring-3 ring-ring/50")}
+      />
+    </NodeViewWrapper>
+  )
+}
+
+const ArticleImageNode = Image.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(ImageView)
+  },
+})
 
 /** Envia a foto e a coloca na posição informada (ou onde está o cursor). */
 async function uploadAndInsert(editor: Editor, file: File, position?: number) {
@@ -235,7 +264,7 @@ export function RichTextEditor({ id, value, onChange, invalid, describedBy }: Ri
           HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
         },
       }),
-      Image,
+      ArticleImageNode,
       Placeholder.configure({ placeholder: "Escreva a notícia aqui…" }),
     ],
     content: bodyToHtml(value),

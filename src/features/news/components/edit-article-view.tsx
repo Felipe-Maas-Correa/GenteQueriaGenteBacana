@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { SearchXIcon } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
@@ -43,4 +44,10 @@ export function EditArticleView({ id }: { id: string }) {
 
   // `key` recria o formulário com os valores salvos ao trocar de notícia.
   return <ArticleForm key={data.id + data.updated_at} article={data} />
+}
+
+/** Lê ?id= da URL (página /admin/noticias/editar). */
+export function EditArticleFromQuery() {
+  const id = useSearchParams().get("id") ?? ""
+  return <EditArticleView id={id} />
 }
