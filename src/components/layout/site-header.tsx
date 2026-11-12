@@ -145,6 +145,28 @@ export function SiteHeader() {
           </Sheet>
         </div>
       </div>
+      {/* Celular: editorias numa faixa que rola para os lados. */}
+      {menu.length ? (
+        <nav
+          aria-label="Editorias"
+          className="relative border-t md:hidden after:pointer-events-none after:absolute after:inset-y-0 after:right-0 after:w-8 after:bg-gradient-to-l after:from-background after:to-transparent"
+        >
+          <div className="flex snap-x scroll-px-4 gap-6 overflow-x-auto px-4 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {menu.map((editoria) => (
+              <EditoriaLink
+                key={editoria.id}
+                slug={editoria.slug}
+                className={cn(navLinkClass, "shrink-0 snap-start whitespace-nowrap")}
+              >
+                {editoria.name}
+              </EditoriaLink>
+            ))}
+            <Link href="/noticias" className={cn(navLinkClass, "shrink-0 whitespace-nowrap pr-6")}>
+              Todas
+            </Link>
+          </div>
+        </nav>
+      ) : null}
     </motion.header>
   )
 }
