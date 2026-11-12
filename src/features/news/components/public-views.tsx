@@ -143,7 +143,7 @@ function ArticleBody({ body }: { body: string }) {
 
   if (html === null) {
     return (
-      <div className="mx-auto max-w-[42rem] space-y-4" aria-busy>
+      <div className="mx-auto max-w-5xl space-y-4" aria-busy>
         <Skeleton className="h-5 w-full" />
         <Skeleton className="h-5 w-11/12" />
         <Skeleton className="h-5 w-4/5" />
@@ -155,7 +155,7 @@ function ArticleBody({ body }: { body: string }) {
     <div
       className={cn(
         articleProseClass,
-        "mx-auto max-w-[42rem] text-foreground/90 [&>p:first-of-type]:text-[1.1875rem] [&>p:first-of-type]:first-letter:float-left [&>p:first-of-type]:first-letter:mr-3 [&>p:first-of-type]:first-letter:font-display [&>p:first-of-type]:first-letter:text-[4.25rem] [&>p:first-of-type]:first-letter:leading-[0.82] [&>p:first-of-type]:first-letter:font-medium"
+        "mx-auto max-w-5xl text-foreground/90 sm:text-[1.1875rem] sm:leading-[1.75] [&>p:first-of-type]:text-[1.1875rem] sm:[&>p:first-of-type]:text-[1.3125rem] [&>p:first-of-type]:first-letter:float-left [&>p:first-of-type]:first-letter:mr-3 [&>p:first-of-type]:first-letter:font-display [&>p:first-of-type]:first-letter:text-[4.25rem] sm:[&>p:first-of-type]:first-letter:text-[5rem] [&>p:first-of-type]:first-letter:leading-[0.82] [&>p:first-of-type]:first-letter:font-medium"
       )}
       dangerouslySetInnerHTML={{ __html: html }}
     />
@@ -209,7 +209,7 @@ export function ArticleReader({ slug }: { slug: string }) {
           <ArrowLeftIcon className="size-4" aria-hidden />
           Voltar para a capa
         </Link>
-        <Reveal className="mx-auto mt-8 max-w-4xl">
+        <Reveal className="mx-auto mt-8 max-w-5xl">
           <ArticleMeta article={article} />
           <h1 className="type-h1 mt-4 text-balance">{article.title}</h1>
           {article.excerpt ? (
