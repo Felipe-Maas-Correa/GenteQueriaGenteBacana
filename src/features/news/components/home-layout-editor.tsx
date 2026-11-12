@@ -280,9 +280,18 @@ function HomeLayoutEditor({
             Abrir o site
           </Link>
         </header>
-        <div className="pointer-events-none overflow-hidden rounded-xl border bg-background p-6 [zoom:0.55] sm:p-10">
+        <p className="type-caption text-muted-foreground">Arraste os cartões aqui na prévia para mudar a ordem.</p>
+        <div className="overflow-hidden rounded-xl border bg-background p-6 [zoom:0.55] sm:p-10">
           {home.length ? (
-            <HomeGrid articles={home} />
+            <HomeGrid
+              articles={home}
+              onReorder={(from, to) => {
+                const next = [...home]
+                const [item] = next.splice(from, 1)
+                next.splice(to, 0, item)
+                update(next)
+              }}
+            />
           ) : (
             <p className="py-20 text-center text-muted-foreground">Página inicial vazia</p>
           )}

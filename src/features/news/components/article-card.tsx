@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { LockIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -183,13 +184,21 @@ const spanClass: Record<CardSize, string> = {
  * grade preenche os espaços livres (`dense`). Usada no site e na prévia do
  * editor de página inicial.
  */
+/**
+ * Grade da página inicial. Com onReorder, os cartões podem ser arrastados
+ * para mudar a ordem (usado na prévia do editor da página inicial).
+ */
 export function HomeGrid({
   articles,
   className,
+  onReorder,
 }: {
   articles: Article[]
   className?: string
+  onReorder?: (from: number, to: number) => void
 }) {
+  const [dragging, setDragging] = useState<number | null>(null)
+  const [over, setOver] = useState<number | null>(null)
   return (
     <div
       className={cn(
@@ -200,10 +209,48 @@ export function HomeGrid({
       {articles.map((article, index) => (
         <div
           key={article.id}
+          draggable={Boolean(onReorder)}
+          onDragStart={
+            onReorder
+              ? (event) => {
+                  event.dataTransfer.effectAllowed = "move"
+                  setDragging(index)
+                }
+              : undefined
+          }
+          onDragOver={
+            onReorder
+              ? (event) => {
+                  event.preventDefault()
+                  if (over !== index) setOver(index)
+                }
+              : undefined
+          }
+          onDrop={
+            onReorder
+              ? (event) => {
+                  event.preventDefault()
+                  if (dragging !== null && dragging !== index) onReorder(dragging, index)
+                  setDragging(null)
+                  setOver(null)
+                }
+              : undefined
+          }
+          onDragEnd={
+            onReorder
+              ? () => {
+                  setDragging(null)
+                  setOver(null)
+                }
+              : undefined
+          }
           className={cn(
             spanClass[article.card_size],
             "border-t pt-5",
-            article.card_size === "hero" && "border-t-0 pt-0 pb-4"
+            article.card_size === "hero" && "border-t-0 pt-0 pb-4",
+            onReorder && "cursor-grab rounded-md outline-offset-8 transition-opacity active:cursor-grabbing [&>*]:pointer-events-none",
+            onReorder && dragging === index && "opacity-40",
+            onReorder && over === index && dragging !== index && "outline-4 outline-dashed outline-brand"
           )}
         >
           <ArticleCard article={article} variant={(index % 3) as 0 | 1 | 2} />
