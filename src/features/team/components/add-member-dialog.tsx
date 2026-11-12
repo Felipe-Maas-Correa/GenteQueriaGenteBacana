@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { MailCheckIcon, UserPlusIcon } from "lucide-react"
+import { CheckCircle2Icon, EyeIcon, EyeOffIcon, UserPlusIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 
-import { addTeamMember } from "../add-member"
+import { addTeamMember, MIN_PASSWORD } from "../add-member"
 
 type Role = "admin" | "editor"
 
@@ -28,13 +28,16 @@ const roles: { value: Role; title: string; description: string }[] = [
   { value: "editor", title: "Editor", description: "Notícias, página inicial, assinantes e áreas." },
 ]
 
-type Result = { message: string; emailSent?: boolean; existed?: boolean }
+type Result = { message: string; existed: boolean; email: string }
 
-/** Botão "Adicionar membro": cria a conta e envia o convite para criar a senha. */
+/** Botão "Adicionar membro": cria a conta já com papel e senha inicial. */
 export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirm, setConfirm] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [role, setRole] = useState<Role>("admin")
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
@@ -43,6 +46,9 @@ export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
   const reset = () => {
     setName("")
     setEmail("")
+    setPassword("")
+    setConfirm("")
+    setShowPassword(false)
     setRole("admin")
     setError(null)
     setResult(null)
@@ -52,15 +58,18 @@ export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
     setError(null)
     if (name.trim().length < 2) return setError("Informe o nome.")
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setError("Informe um e-mail válido.")
+    if (password.length < MIN_PASSWORD) {
+      return setError(`A senha precisa ter pelo menos ${MIN_PASSWORD} caracteres.`)
+    }
+    if (password !== confirm) return setError("As senhas não conferem.")
     startTransition(async () => {
-      const outcome = await addTeamMember({ name, email, role })
+      const outcome = await addTeamMember({ name, email, role, password })
       if (!outcome.ok) return setError(outcome.message)
-      setResult({ message: outcome.message, ...outcome.data })
+      setResult({ message: outcome.message, existed: outcome.data?.existed ?? false, email: email.trim() })
       toast.success(outcome.message)
       onAdded()
     })
   }
-
 
   return (
     <Dialog
@@ -85,21 +94,17 @@ export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
               <DialogTitle>{result.existed ? "Papel atualizado" : "Membro cadastrado"}</DialogTitle>
               <DialogDescription>{result.message}</DialogDescription>
             </DialogHeader>
-
             {result.existed ? null : (
-              <Alert variant={result.emailSent ? "success" : "warning"}>
-                <MailCheckIcon aria-hidden />
-                <AlertTitle>
-                  {result.emailSent ? "E-mail enviado" : "E-mail não enviado"}
-                </AlertTitle>
+              <Alert variant="success">
+                <CheckCircle2Icon aria-hidden />
+                <AlertTitle>Próximo passo</AlertTitle>
                 <AlertDescription>
-                  {result.emailSent
-                    ? "A pessoa recebe o e-mail “Redefinir senha” do Firebase para criar a senha (peça para olhar o spam). Depois é só entrar no site."
-                    : "Peça para a pessoa abrir o login e usar “Esqueci minha senha” com este e-mail."}
+                  Envie para a pessoa o e-mail <strong>{result.email}</strong> e a senha que
+                  você definiu. Ela entra pelo site e pode trocar a senha em Minha conta ›
+                  Trocar senha.
                 </AlertDescription>
               </Alert>
             )}
-
             <DialogFooter>
               <Button variant="ghost" onClick={reset}>
                 Cadastrar outra pessoa
@@ -119,8 +124,8 @@ export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
             <DialogHeader>
               <DialogTitle>Adicionar membro da equipe</DialogTitle>
               <DialogDescription>
-                A pessoa recebe um e-mail para criar a própria senha. Se ela já tiver
-                conta de leitor, só o papel é alterado.
+                Você define a senha inicial; a pessoa pode trocá-la depois em Minha conta.
+                Se o e-mail já tiver conta, só o papel é alterado.
               </DialogDescription>
             </DialogHeader>
 
@@ -145,6 +150,44 @@ export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
                 autoComplete="off"
                 placeholder="pessoa@exemplo.com.br"
               />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="membro-senha">Senha inicial</Label>
+                <div className="relative">
+                  <Input
+                    id="membro-senha"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                    aria-pressed={showPassword}
+                    className="absolute top-1/2 right-2 grid size-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOffIcon className="size-4" aria-hidden /> : <EyeIcon className="size-4" aria-hidden />}
+                  </button>
+                </div>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="membro-senha2">Confirme a senha</Label>
+                <Input
+                  id="membro-senha2"
+                  type={showPassword ? "text" : "password"}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+              <p className="type-caption -mt-2 text-muted-foreground sm:col-span-2">
+                Mínimo de {MIN_PASSWORD} caracteres.
+              </p>
             </div>
 
             <fieldset className="grid gap-2">
@@ -178,7 +221,7 @@ export function AddMemberDialog({ onAdded }: { onAdded: () => void }) {
                 Cancelar
               </Button>
               <Button type="submit" loading={pending}>
-                Cadastrar e enviar convite
+                Cadastrar membro
               </Button>
             </DialogFooter>
           </form>

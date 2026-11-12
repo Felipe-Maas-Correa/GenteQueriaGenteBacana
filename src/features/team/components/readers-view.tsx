@@ -2,20 +2,15 @@
 
 import { useMemo, useState } from "react"
 import { ShieldAlertIcon, UsersIcon } from "lucide-react"
-import { toast } from "sonner"
 
 import { SearchInput } from "@/components/forms/search-input"
 import { EmptyState } from "@/components/shared/empty-state"
 import { QueryError } from "@/components/shared/query-error"
 import { SetupNotice } from "@/components/shared/setup-notice"
 import { TableSkeleton } from "@/components/shared/skeletons"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { SubscriberBadge } from "@/components/shared/subscriber-badge"
+import { UserAvatar } from "@/components/shared/user-avatar"
+import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -25,13 +20,18 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useAuth } from "@/features/authentication/auth-context"
-import { roleLabels } from "@/features/authentication/roles"
+import { listSubscriptions } from "@/features/billing/data"
 import { useAsync } from "@/hooks/use-async"
 import { formatDateTime, formatNumber, normalizeSearch } from "@/lib/utils/format"
 
-import { listProfiles, updateProfile } from "../queries"
+import { listProfiles } from "../queries"
 
-/** Contas criadas pelo site (papel "leitor"). Só administradores veem. */
+type Filter = "todos" | "assinantes" | "nao-assinantes"
+
+/**
+ * Contas criadas pelo site (leitores). Tela só de consulta: mostra quantos
+ * são e quem é assinante (selo do jornal). Só administradores veem.
+ */
 export function ReadersView() {
   const { status, user } = useAuth()
   const configured = status !== "unconfigured"
@@ -39,26 +39,27 @@ export function ReadersView() {
   const { data, loading, error, reload } = useAsync(
     () =>
       configured && isAdmin
-        ? listProfiles().then((all) =>
-            all
+        ? Promise.all([listProfiles(), listSubscriptions()]).then(([profiles, subscriptions]) => {
+            const active = new Set(subscriptions.filter((s) => s.status === "ativa").map((s) => s.uid))
+            return profiles
               .filter((p) => p.role === "reader")
+              .map((p) => ({ ...p, subscriber: active.has(p.id) }))
               .sort((a, b) => b.created_at.localeCompare(a.created_at))
-          )
+          })
         : Promise.resolve(null),
     [configured, isAdmin]
   )
   const [search, setSearch] = useState("")
-  const [savingId, setSavingId] = useState<string | null>(null)
+  const [filter, setFilter] = useState<Filter>("todos")
 
   const rows = useMemo(() => {
     const term = normalizeSearch(search)
     return (data ?? []).filter(
       (p) =>
-        !term ||
-        normalizeSearch(p.name).includes(term) ||
-        normalizeSearch(p.email).includes(term)
+        (filter === "todos" || (filter === "assinantes") === p.subscriber) &&
+        (!term || normalizeSearch(`${p.name} ${p.email}`).includes(term))
     )
-  }, [data, search])
+  }, [data, search, filter])
 
   if (!configured) return <SetupNotice />
   if (!isAdmin) {
@@ -83,21 +84,36 @@ export function ReadersView() {
     )
   }
 
-  const promote = async (id: string, role: "admin" | "editor") => {
-    setSavingId(id)
-    const result = await updateProfile(id, { role })
-    setSavingId(null)
-    if (result.ok) {
-      toast.success(`Agora é ${roleLabels[role].toLowerCase()}; aparece em Equipe.`)
-      reload()
-    } else {
-      toast.error(result.message)
-    }
-  }
+  const subscribers = data.filter((p) => p.subscriber).length
+  const filters: { value: Filter; label: string; count: number }[] = [
+    { value: "todos", label: "Todos", count: data.length },
+    { value: "assinantes", label: "Assinantes", count: subscribers },
+    { value: "nao-assinantes", label: "Não assinantes", count: data.length - subscribers },
+  ]
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Resumo */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border bg-card p-4">
+          <p className="type-overline text-muted-foreground">Leitores</p>
+          <p className="mt-1 font-display text-3xl font-medium">{formatNumber(data.length)}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-4">
+          <p className="type-overline flex items-center gap-1.5 text-muted-foreground">
+            <SubscriberBadge /> Assinantes
+          </p>
+          <p className="mt-1 font-display text-3xl font-medium">{formatNumber(subscribers)}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-4">
+          <p className="type-overline text-muted-foreground">Taxa de assinatura</p>
+          <p className="mt-1 font-display text-3xl font-medium">
+            {Math.round((subscribers / data.length) * 100)}%
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
         <SearchInput
           value={search}
           onChange={setSearch}
@@ -105,9 +121,23 @@ export function ReadersView() {
           aria-label="Buscar leitores"
           className="w-full sm:w-80"
         />
-        <p className="type-small text-muted-foreground">
-          {formatNumber(data.length)} {data.length === 1 ? "leitor" : "leitores"}
-        </p>
+        <div className="flex gap-1 rounded-lg border p-1" role="group" aria-label="Filtrar leitores">
+          {filters.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              aria-pressed={filter === item.value}
+              onClick={() => setFilter(item.value)}
+              className={
+                filter === item.value
+                  ? "rounded-md bg-secondary px-3 py-1 text-sm font-medium"
+                  : "rounded-md px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+              }
+            >
+              {item.label} <span className="tabular-nums">({item.count})</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-card">
@@ -115,48 +145,46 @@ export function ReadersView() {
           <TableHeader>
             <TableRow>
               <TableHead>Leitor</TableHead>
+              <TableHead>Assinatura</TableHead>
               <TableHead className="hidden md:table-cell">Cadastro</TableHead>
-              <TableHead className="text-right">Acesso ao painel</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((profile) => (
               <TableRow key={profile.id}>
                 <TableCell>
-                  <p className="font-medium">{profile.name || profile.email.split("@")[0]}</p>
-                  <p className="text-sm text-muted-foreground">{profile.email}</p>
+                  <div className="flex items-center gap-3">
+                    <UserAvatar name={profile.name || profile.email} photoUrl={profile.photo_url} />
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1.5 font-medium">
+                        {profile.name || profile.email.split("@")[0]}
+                        {profile.subscriber ? <SubscriberBadge /> : null}
+                      </p>
+                      <p className="truncate text-sm text-muted-foreground">{profile.email}</p>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {profile.subscriber ? (
+                    <Badge variant="brand">Assinante</Badge>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
                   {formatDateTime(profile.created_at) || "—"}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Select
-                    value=""
-                    disabled={savingId === profile.id}
-                    onValueChange={(role) => promote(profile.id, role as "admin" | "editor")}
-                  >
-                    <SelectTrigger
-                      className="ml-auto w-44"
-                      aria-label={`Dar acesso ao painel para ${profile.name || profile.email}`}
-                    >
-                      <SelectValue placeholder="Dar acesso…" />
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      <SelectItem value="editor">Tornar editor</SelectItem>
-                      <SelectItem value="admin">Tornar administrador</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
         {rows.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            Nenhum leitor encontrado com essa busca.
-          </p>
+          <p className="p-8 text-center text-sm text-muted-foreground">Nenhum leitor encontrado.</p>
         ) : null}
       </div>
+      <p className="type-caption text-muted-foreground">
+        Para dar acesso ao painel a alguém, use Sistema › Equipe › Adicionar membro.
+      </p>
     </div>
   )
 }

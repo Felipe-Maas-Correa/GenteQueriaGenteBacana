@@ -24,6 +24,8 @@ import {
   setDoc,
 } from "firebase/firestore"
 
+import { toast } from "sonner"
+
 import { normalizeRole } from "@/features/authentication/roles"
 import { getFirebase } from "@/lib/firebase/client"
 import { withTimeout } from "@/lib/firebase/firestore-helpers"
@@ -154,6 +156,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return onSnapshot(
       ref,
       (snapshot) => {
+        // Conta desativada por um administrador: encerra a sessão na hora.
+        if (snapshot.data()?.disabled === true) {
+          toast.error("Sua conta foi desativada. Fale com a administração do jornal.")
+          void signOut(firebase.auth)
+          return
+        }
         setProfile(
           snapshot.exists()
             ? ({ id: snapshot.id, ...snapshot.data() } as unknown as Profile)
@@ -172,11 +180,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const parsed = loginSchema.safeParse(input)
       if (!parsed.success) return actionError("Confira os campos informados.")
       try {
-        await signInWithEmailAndPassword(
+        const { user: signedIn } = await signInWithEmailAndPassword(
           firebase.auth,
           parsed.data.email,
           parsed.data.password
         )
+        const profileSnapshot = await withTimeout(
+          getDoc(doc(firebase.db, "profiles", signedIn.uid))
+        ).catch(() => null)
+        if (profileSnapshot?.data()?.disabled === true) {
+          await signOut(firebase.auth)
+          return actionError("Sua conta foi desativada. Fale com a administração do jornal.")
+        }
         return { ok: true, message: "Autenticado." }
       } catch (error) {
         const code = (error as { code?: string }).code

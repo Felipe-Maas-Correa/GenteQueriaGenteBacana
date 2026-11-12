@@ -18,18 +18,20 @@ import {
   where,
 } from "firebase/firestore"
 
-import { sendResetEmail } from "@/features/authentication/password-reset"
 import { firebaseConfig } from "@/lib/firebase/config"
 import { getDb } from "@/lib/firebase/client"
 import { firestoreErrorMessage } from "@/lib/firebase/firestore-helpers"
 import { actionError, type ActionResult } from "@/lib/utils/action-result"
 
-type NewMember = { name: string; email: string; role: "admin" | "editor" }
-
-function randomPassword(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(24))
-  return Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("") + "Aa1!"
+type NewMember = {
+  name: string
+  email: string
+  role: "admin" | "editor"
+  /** Senha inicial definida pelo administrador (a pessoa pode trocar depois). */
+  password: string
 }
+
+export const MIN_PASSWORD = 8
 
 /**
  * Cadastra um membro da equipe direto do navegador (o site é estático, sem
@@ -40,15 +42,20 @@ function randomPassword(): string {
  * 2. A própria conta nova cria seu perfil como "reader" (o que as regras
  *    permitem) e sai.
  * 3. O administrador promove o perfil para o papel escolhido.
- * 4. A pessoa recebe o e-mail do Firebase para criar a própria senha.
+ * 4. O administrador passa a senha inicial para a pessoa, que pode trocá-la
+ *    em Minha conta › Trocar senha.
  *
- * Se o e-mail já tiver conta, só o papel é alterado.
+ * Se o e-mail já tiver conta, só o papel é alterado (a senha continua a dela).
  */
 export async function addTeamMember({
   name,
   email,
   role,
-}: NewMember): Promise<ActionResult<{ existed: boolean; emailSent: boolean }>> {
+  password,
+}: NewMember): Promise<ActionResult<{ existed: boolean }>> {
+  if (password.length < MIN_PASSWORD) {
+    return actionError(`A senha precisa ter pelo menos ${MIN_PASSWORD} caracteres.`)
+  }
   const cleanEmail = email.trim().toLowerCase()
   const cleanName = name.trim()
   const db = getDb()
@@ -63,7 +70,7 @@ export async function addTeamMember({
       const { user } = await createUserWithEmailAndPassword(
         secondaryAuth,
         cleanEmail,
-        randomPassword()
+        password
       )
       uid = user.uid
       await updateAuthProfile(user, { displayName: cleanName })
@@ -79,6 +86,8 @@ export async function addTeamMember({
       const code = (error as { code?: string }).code
       if (code === "auth/email-already-in-use") {
         existed = true
+      } else if (code === "auth/weak-password") {
+        return actionError("Senha muito fraca. Use pelo menos 8 caracteres, misturando letras e números.")
       } else if (code === "auth/invalid-email") {
         return actionError("Informe um e-mail válido.")
       } else if (code === "auth/operation-not-allowed") {
@@ -105,8 +114,8 @@ export async function addTeamMember({
       await updateDoc(profile.ref, { role, updated_at: serverTimestamp() })
       return {
         ok: true,
-        message: `${cleanEmail} já tinha conta; o papel foi atualizado.`,
-        data: { existed: true, emailSent: false },
+        message: `${cleanEmail} já tinha conta: o papel foi atualizado e a senha continua a que a pessoa usa.`,
+        data: { existed: true },
       }
     }
 
@@ -115,12 +124,9 @@ export async function addTeamMember({
     return actionError(firestoreErrorMessage(error))
   }
 
-  const invite = await sendResetEmail(cleanEmail)
   return {
     ok: true,
-    message: invite.ok
-      ? `Conta criada. Enviamos um e-mail para ${cleanEmail} criar a senha.`
-      : `Conta criada, mas o e-mail não foi enviado. Peça para a pessoa usar “Esqueci minha senha” no login.`,
-    data: { existed: false, emailSent: invite.ok },
+    message: `Conta de ${cleanName} criada. Passe o e-mail e a senha para a pessoa entrar.`,
+    data: { existed: false },
   }
 }

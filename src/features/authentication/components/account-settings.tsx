@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react"
 import { updateProfile as updateAuthProfile } from "firebase/auth"
-import { CameraIcon, KeyRoundIcon } from "lucide-react"
+import { CameraIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Field } from "@/components/forms/field"
@@ -20,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/features/authentication/auth-context"
-import { sendResetEmail } from "@/features/authentication/password-reset"
+import { ChangePasswordDialog } from "@/features/authentication/components/change-password-dialog"
 import { roleLabels } from "@/features/authentication/roles"
 import { updateProfile } from "@/features/team/queries"
 import { InvoicesPanel } from "@/features/billing/components/invoices-panel"
@@ -35,7 +35,6 @@ function ProfileCard() {
   const [name, setName] = useState<string | null>(null)
   const [error, setError] = useState<string>()
   const [saving, startSaving] = useTransition()
-  const [sendingReset, startReset] = useTransition()
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const photoInput = useRef<HTMLInputElement>(null)
 
@@ -98,13 +97,6 @@ function ProfileCard() {
     if (saved.ok) toast.success("Foto removida.")
     else toast.error(saved.message)
   }
-
-  const resetPassword = () =>
-    startReset(async () => {
-      const result = await sendResetEmail(user.email)
-      if (result.ok) toast.success(result.message)
-      else toast.error(result.message)
-    })
 
   return (
     <Card>
@@ -177,10 +169,7 @@ function ProfileCard() {
             <Button type="submit" loading={saving} disabled={!changed}>
               Salvar dados
             </Button>
-            <Button type="button" variant="outline" loading={sendingReset} onClick={resetPassword}>
-              <KeyRoundIcon aria-hidden />
-              Trocar senha
-            </Button>
+            <ChangePasswordDialog email={user.email} />
           </div>
         </form>
       </CardContent>

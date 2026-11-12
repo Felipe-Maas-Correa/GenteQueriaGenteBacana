@@ -41,6 +41,8 @@ export type Profile = {
   role: UserRole
   /** Foto de perfil ("/api/imagens/{id}"), opcional. */
   photo_url?: string
+  /** Acesso desativado por um administrador (a pessoa não consegue entrar). */
+  disabled?: boolean
   created_at: string
   updated_at: string
 }

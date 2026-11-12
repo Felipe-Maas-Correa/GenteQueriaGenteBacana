@@ -12,10 +12,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Conta desativada (disabled == true) perde qualquer papel de equipe.
     function roleOf(uid) {
-      return exists(/databases/$(database)/documents/profiles/$(uid))
-        ? get(/databases/$(database)/documents/profiles/$(uid)).data.role
-        : 'reader';
+      let path = /databases/$(database)/documents/profiles/$(uid);
+      let profile = exists(path) ? get(path).data : null;
+      return profile == null ? 'reader'
+        : profile.get('disabled', false) == true ? 'reader'
+        : profile.role;
     }
 
     function myRole() {
@@ -41,12 +44,13 @@ service cloud.firestore {
                     && request.auth.uid == uid
                     && request.resource.data.role == 'reader';
 
-      // Admin altera qualquer perfil; o próprio usuário pode alterar o seu
-      // desde que NÃO mude o papel.
+      // Admin altera qualquer perfil (papel, desativar); o próprio usuário pode
+      // alterar o seu desde que NÃO mude o papel nem a desativação.
       allow update: if signedIn() && (
-        isAdmin() ||
+        (isAdmin() && request.auth.uid != uid) ||
         (request.auth.uid == uid
-          && request.resource.data.role == resource.data.role)
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.get('disabled', false) == resource.data.get('disabled', false))
       );
 
       allow delete: if isAdmin();
