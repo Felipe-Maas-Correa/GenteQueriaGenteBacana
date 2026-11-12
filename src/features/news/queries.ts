@@ -26,6 +26,8 @@ export function mapArticle(id: string, data: Record<string, unknown>): Article {
     kicker_tone: data.kicker_tone === "urgent" ? "urgent" : "default",
     image_url: str("image_url"),
     image_caption: str("image_caption"),
+    gallery: Array.isArray(data.gallery) ? (data.gallery as string[]).filter((v) => typeof v === "string") : [],
+    access: data.access === "partial" || data.access === "subscribers" ? data.access : "public",
     status: data.status === "published" ? "published" : "draft",
     on_home: data.on_home === true,
     home_order: typeof data.home_order === "number" ? data.home_order : 0,
@@ -66,9 +68,29 @@ export async function listAllArticles(): Promise<Article[]> {
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
 }
 
+/**
+ * Notícia completa para edição (equipe): se o acesso é restrito, o texto
+ * inteiro está em articles/{id}/privado/conteudo.
+ */
 export async function getArticle(id: string): Promise<Article | null> {
   const snapshot = await getDoc(doc(getDb(), "articles", id))
-  return snapshot.exists() ? mapArticle(snapshot.id, snapshot.data()) : null
+  if (!snapshot.exists()) return null
+  const article = mapArticle(snapshot.id, snapshot.data())
+  if (article.access !== "public") {
+    const restricted = await getRestrictedBody(id).catch(() => null)
+    if (restricted !== null) article.body = restricted
+  }
+  return article
+}
+
+/**
+ * Texto completo de notícia restrita. As regras do banco só liberam para
+ * assinantes ativos e para a equipe; para os demais, a leitura falha.
+ */
+export async function getRestrictedBody(id: string): Promise<string | null> {
+  const snapshot = await withTimeout(getDoc(doc(getDb(), "articles", id, "privado", "conteudo")))
+  const body = snapshot.data()?.body
+  return typeof body === "string" ? body : null
 }
 
 /* ── Site público ────────────────────────────────────────────────

@@ -65,6 +65,8 @@ export type ArticleStatus = "draft" | "published"
 export type CardSize = "hero" | "large" | "small"
 /** Tom do chapéu (rótulo acima do título). */
 export type KickerTone = "default" | "urgent"
+/** Quem pode ler: todos, só assinantes, ou prévia aberta + resto para assinantes. */
+export type ArticleAccess = "public" | "partial" | "subscribers"
 
 export type Article = {
   id: string
@@ -81,6 +83,9 @@ export type Article = {
   kicker_tone: KickerTone
   image_url: string
   image_caption: string
+  /** Fotos extras da capa: com elas, a capa vira um carrossel (a 1ª é image_url). */
+  gallery: string[]
+  access: ArticleAccess
   status: ArticleStatus
   /** Aparência e posição do cartão na página inicial. */
   on_home: boolean

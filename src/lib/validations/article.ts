@@ -56,6 +56,16 @@ export const articleSchema = z.object({
     .string()
     .trim()
     .max(240, "A legenda pode ter no máximo 240 caracteres."),
+  /** Fotos extras da capa (carrossel); a primeira foto continua em image_url. */
+  gallery: z
+    .array(
+      z.string().refine(
+        (value) => /^https?:\/\//.test(value) || /^\/api\/imagens\/[A-Za-z0-9]+$/.test(value),
+        "Foto inválida."
+      )
+    )
+    .max(12, "Use no máximo 12 fotos na capa."),
+  access: z.enum(["public", "partial", "subscribers"]),
   status: z.enum(["draft", "published"]),
   /**
    * Data/hora de publicação (campo datetime-local, no fuso do navegador).

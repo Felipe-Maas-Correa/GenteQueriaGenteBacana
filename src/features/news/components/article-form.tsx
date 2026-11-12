@@ -3,11 +3,18 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useRef, useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  EyeIcon,
   ExternalLinkIcon,
+  GlobeIcon,
+  ImagePlusIcon,
   ImageUpIcon,
+  LockIcon,
+  LockOpenIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react"
@@ -34,13 +41,14 @@ import {
   slugify,
   type ArticleInput,
 } from "@/lib/validations/article"
-import type { Article } from "@/types/database"
+import type { Article, ArticleAccess } from "@/types/database"
 
-import { deleteArticle, saveArticle, uploadArticleImage } from "../actions"
+import { deleteArticle, previewOf, saveArticle, uploadArticleImage } from "../actions"
 import { isEmptyBody } from "../article-body"
 import { StoredImage } from "../image-source"
 import { ArticleCard, articleHref } from "./article-card"
 import { CardSizePicker, SwitchRow } from "./card-controls"
+import { ArticleView } from "./public-views"
 import { RichTextEditor } from "./rich-text-editor"
 import { routes } from "@/lib/routes"
 
@@ -63,6 +71,65 @@ function Panel({
   )
 }
 
+const accessOptions: { value: ArticleAccess; label: string; hint: string; icon: typeof GlobeIcon }[] = [
+  { value: "public", label: "Todos os leitores", hint: "Qualquer pessoa lê a notícia inteira.", icon: GlobeIcon },
+  { value: "partial", label: "Prévia aberta", hint: "Todos leem o começo; o resto é só para assinantes.", icon: LockOpenIcon },
+  { value: "subscribers", label: "Só assinantes", hint: "Quem não assina vê apenas título, foto e linha fina.", icon: LockIcon },
+]
+
+/** Pré-visualização em tela cheia: a edição continua aberta por baixo. */
+function PreviewOverlay({ article, body, onClose }: { article: Article; body: string; onClose: () => void }) {
+  const [asSubscriber, setAsSubscriber] = useState(true)
+  const restricted = article.access !== "public"
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose()
+    const previous = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    window.addEventListener("keydown", onKey)
+    return () => {
+      document.body.style.overflow = previous
+      window.removeEventListener("keydown", onKey)
+    }
+  }, [onClose])
+
+  const lockedBody = article.access === "partial" ? previewOf(body) : ""
+  return (
+    <div role="dialog" aria-modal aria-label="Pré-visualização da notícia" className="fixed inset-0 z-50 overflow-y-auto bg-background">
+      <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b bg-background/90 px-4 py-3 backdrop-blur-md">
+        <Button type="button" onClick={onClose}>
+          <ArrowLeftIcon aria-hidden />
+          Voltar para a edição
+        </Button>
+        <span className="type-small text-muted-foreground">Pré-visualização — nada foi salvo nem publicado.</span>
+        {restricted ? (
+          <div className="ml-auto flex rounded-lg border p-0.5 text-sm">
+            {[true, false].map((option) => (
+              <button
+                key={String(option)}
+                type="button"
+                onClick={() => setAsSubscriber(option)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 font-medium transition-colors",
+                  asSubscriber === option ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {option ? "Como assinante" : "Como não assinante"}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <article className="pb-16">
+        <ArticleView
+          preview
+          article={{ ...article, body: restricted && !asSubscriber ? lockedBody : body }}
+          fullBody={restricted && !asSubscriber ? null : body}
+        />
+      </article>
+    </div>
+  )
+}
+
 function toInput(article?: Article): ArticleInput {
   return {
     title: article?.title ?? "",
@@ -75,6 +142,8 @@ function toInput(article?: Article): ArticleInput {
     kicker_tone: article?.kicker_tone ?? "default",
     image_url: article?.image_url ?? "",
     image_caption: article?.image_caption ?? "",
+    gallery: article?.gallery ?? [],
+    access: article?.access ?? "public",
     status: article?.status ?? "draft",
     publish_at: isoToLocalInput(article?.published_at ?? ""),
     on_home: article?.on_home ?? true,
@@ -92,6 +161,9 @@ export function ArticleForm({ article }: { article?: Article }) {
   const [deleting, startDeleting] = useTransition()
   const [uploading, setUploading] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [galleryUploading, setGalleryUploading] = useState(false)
+  const galleryInput = useRef<HTMLInputElement>(null)
   // Enquanto o endereço não for editado à mão, acompanha o título.
   const [slugTouched, setSlugTouched] = useState(isEditing)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -180,6 +252,38 @@ export function ArticleForm({ article }: { article?: Article }) {
     }
   }
 
+  const gallery = values.gallery ?? []
+  const setGallery = (next: string[]) => setValue("gallery", next, { shouldDirty: true })
+
+  const handleGalleryUpload = async (list: FileList | null) => {
+    const files = Array.from(list ?? []).filter((file) => file.type.startsWith("image/"))
+    if (!files.length) return
+    setGalleryUploading(true)
+    const added: string[] = []
+    for (const file of files) {
+      const result = await uploadArticleImage(file)
+      if (result.ok && result.data) added.push(result.data.url)
+      else toast.error(result.message)
+    }
+    setGalleryUploading(false)
+    if (galleryInput.current) galleryInput.current.value = ""
+    if (!added.length) return
+    // Sem foto principal, a primeira enviada vira a principal.
+    if (!values.image_url) {
+      setValue("image_url", added.shift() as string, { shouldDirty: true })
+      setValue("show_image", true, { shouldDirty: true })
+    }
+    setGallery([...gallery, ...added].slice(0, 12))
+  }
+
+  const moveGallery = (index: number, delta: number) => {
+    const next = [...gallery]
+    const target = index + delta
+    if (target < 0 || target >= next.length) return
+    ;[next[index], next[target]] = [next[target], next[index]]
+    setGallery(next)
+  }
+
   const handleDelete = () => {
     if (!article) return
     startDeleting(async () => {
@@ -239,7 +343,7 @@ export function ArticleForm({ article }: { article?: Article }) {
           <Field
             label="Texto da notícia"
             error={errors.body?.message}
-            hint="Para pôr uma foto no meio do texto: clique onde ela deve ficar e use Inserir foto (ou cole/arraste a imagem)."
+            hint="Clique onde a mídia deve ficar e use Inserir foto, Carrossel ou Vídeo. Clique numa foto para mudar o tamanho; arraste para mudar de lugar."
           >
             {(field) => (
               <Controller
@@ -259,7 +363,7 @@ export function ArticleForm({ article }: { article?: Article }) {
           </Field>
         </Panel>
 
-        <Panel title="Foto principal">
+        <Panel title="Foto principal (capa)">
           {values.image_url ? (
             <figure className="relative overflow-hidden rounded-md border">
               <StoredImage
@@ -322,6 +426,54 @@ export function ArticleForm({ article }: { article?: Article }) {
             >
               {(field) => <Input {...field} {...register("image_caption")} />}
             </Field>
+          </div>
+
+          <div className="space-y-3 border-t pt-4">
+            <div>
+              <p className="text-sm font-medium">Carrossel na capa</p>
+              <p className="type-caption text-muted-foreground">
+                Adicione mais fotos para a capa virar um carrossel (até 12). A foto principal é sempre a primeira.
+              </p>
+            </div>
+            {gallery.length ? (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {gallery.map((src, index) => (
+                  <div key={`${src}-${index}`} className="group relative overflow-hidden rounded-md border">
+                    <StoredImage src={src} alt={`Foto extra ${index + 1}`} loading="eager" className="aspect-[3/2] w-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/55 p-0.5 text-white [&_button]:grid [&_button]:size-7 [&_button]:place-items-center [&_button]:rounded [&_button:hover]:bg-white/20 [&_svg]:size-3.5">
+                      <button type="button" aria-label="Mover para a esquerda" onClick={() => moveGallery(index, -1)}>
+                        <ArrowLeftIcon />
+                      </button>
+                      <button type="button" aria-label="Remover foto" onClick={() => setGallery(gallery.filter((_, i) => i !== index))}>
+                        <XIcon />
+                      </button>
+                      <button type="button" aria-label="Mover para a direita" onClick={() => moveGallery(index, 1)}>
+                        <ArrowRightIcon />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <input
+              ref={galleryInput}
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              aria-label="Escolher fotos para o carrossel da capa"
+              onChange={(event) => handleGalleryUpload(event.target.files)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              loading={galleryUploading}
+              disabled={gallery.length >= 12}
+              onClick={() => galleryInput.current?.click()}
+            >
+              <ImagePlusIcon aria-hidden />
+              Adicionar fotos ao carrossel
+            </Button>
           </div>
         </Panel>
       </div>
@@ -433,6 +585,40 @@ export function ArticleForm({ article }: { article?: Article }) {
           ) : null}
         </Panel>
 
+        <Panel title="Quem pode ler">
+          <Controller
+            control={control}
+            name="access"
+            render={({ field: { value, onChange } }) => (
+              <div role="radiogroup" aria-label="Quem pode ler" className="space-y-2">
+                {accessOptions.map((option) => {
+                  const Icon = option.icon
+                  const active = value === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => onChange(option.value)}
+                      className={cn(
+                        "flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/60",
+                        active && "border-foreground bg-muted/60 ring-1 ring-foreground"
+                      )}
+                    >
+                      <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                      <span>
+                        <span className="block text-sm font-medium">{option.label}</span>
+                        <span className="type-caption block text-muted-foreground">{option.hint}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          />
+        </Panel>
+
         <Panel title="Cartão na página inicial">
           <Controller
             control={control}
@@ -539,6 +725,10 @@ export function ArticleForm({ article }: { article?: Article }) {
           </Button>
         ) : null}
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
+            <EyeIcon aria-hidden />
+            Pré-visualizar
+          </Button>
           <Button asChild variant="ghost">
             <Link href={LIST_PATH}>Voltar</Link>
           </Button>
@@ -584,6 +774,10 @@ export function ArticleForm({ article }: { article?: Article }) {
           )}
         </div>
       </div>
+
+      {previewOpen ? (
+        <PreviewOverlay article={preview} body={values.body} onClose={() => setPreviewOpen(false)} />
+      ) : null}
 
       {article ? (
         <ConfirmDialog

@@ -1,14 +1,11 @@
 import {
-  addDoc,
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
   query,
   serverTimestamp,
   Timestamp,
-  updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore"
@@ -19,6 +16,19 @@ import { actionError, type ActionResult } from "@/lib/utils/action-result"
 import { uploadImage } from "@/lib/images/upload"
 import { articleSchema, type ArticleInput } from "@/lib/validations/article"
 import type { CardSize } from "@/types/database"
+
+/** Prévia aberta das notícias "parcialmente abertas": os 3 primeiros blocos. */
+const PREVIEW_BLOCKS = 3
+
+export function previewOf(html: string): string {
+  if (typeof DOMParser === "undefined") return ""
+  const root = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html").body.firstElementChild
+  if (!root) return ""
+  return Array.from(root.children)
+    .slice(0, PREVIEW_BLOCKS)
+    .map((element) => element.outerHTML)
+    .join("")
+}
 
 function toFieldErrors(issues: { path: PropertyKey[]; message: string }[]) {
   const errors: Record<string, string[]> = {}
@@ -48,9 +58,17 @@ export async function saveArticle(
       toFieldErrors(parsed.error.issues)
     )
   }
-  const { publish_at, ...data } = parsed.data
+  const { publish_at, body: fullBody, ...rest } = parsed.data
   // Data escolhida (agendamento ou data retroativa); vazia = agora.
   const chosenDate = publish_at ? Timestamp.fromDate(new Date(publish_at)) : null
+
+  // Notícia restrita: o documento público guarda só a prévia (ou nada) e o
+  // texto inteiro vai para articles/{id}/privado/conteudo, que as regras
+  // liberam apenas para assinantes ativos e para a equipe. Esconder na tela
+  // não basta: qualquer um pode ler o banco direto pelo navegador.
+  const publicBody =
+    rest.access === "public" ? fullBody : rest.access === "partial" ? previewOf(fullBody) : ""
+  const data = { ...rest, body: publicBody }
 
   try {
     if (await slugInUse(data.slug, id)) {
@@ -60,7 +78,9 @@ export async function saveArticle(
 
     const db = getDb()
     if (id === null) {
-      const created = await addDoc(collection(db, "articles"), {
+      const ref = doc(collection(db, "articles"))
+      const batch = writeBatch(db)
+      batch.set(ref, {
         ...data,
         // Novas notícias entram no topo da página inicial.
         home_order: -Date.now(),
@@ -69,7 +89,11 @@ export async function saveArticle(
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       })
-      return { ok: true, message: "Notícia criada.", data: { id: created.id } }
+      if (rest.access !== "public") {
+        batch.set(doc(db, "articles", ref.id, "privado", "conteudo"), { body: fullBody })
+      }
+      await batch.commit()
+      return { ok: true, message: "Notícia criada.", data: { id: ref.id } }
     }
 
     const docRef = doc(db, "articles", id)
@@ -77,7 +101,8 @@ export async function saveArticle(
     if (!current.exists()) return actionError("Notícia não encontrada.")
     const firstPublish =
       data.status === "published" && !current.data().published_at
-    await updateDoc(docRef, {
+    const batch = writeBatch(db)
+    batch.update(docRef, {
       ...data,
       ...(chosenDate
         ? { published_at: chosenDate }
@@ -86,6 +111,10 @@ export async function saveArticle(
           : {}),
       updated_at: serverTimestamp(),
     })
+    const privateRef = doc(db, "articles", id, "privado", "conteudo")
+    if (rest.access === "public") batch.delete(privateRef)
+    else batch.set(privateRef, { body: fullBody })
+    await batch.commit()
     return { ok: true, message: "Alterações salvas.", data: { id } }
   } catch (error) {
     return actionError(firestoreErrorMessage(error))
@@ -94,7 +123,11 @@ export async function saveArticle(
 
 export async function deleteArticle(id: string): Promise<ActionResult> {
   try {
-    await deleteDoc(doc(getDb(), "articles", id))
+    const db = getDb()
+    const batch = writeBatch(db)
+    batch.delete(doc(db, "articles", id, "privado", "conteudo"))
+    batch.delete(doc(db, "articles", id))
+    await batch.commit()
     return { ok: true, message: "Notícia excluída." }
   } catch (error) {
     return actionError(firestoreErrorMessage(error))

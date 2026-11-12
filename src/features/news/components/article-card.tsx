@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { LockIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { useEditorias } from "@/features/editorias/editorias-context"
@@ -43,6 +44,12 @@ export function ArticleMeta({
       <span className="type-overline text-brand">
         {label(article.editoria)}
       </span>
+      {article.access && article.access !== "public" ? (
+        <span className="type-overline inline-flex items-center gap-1 text-muted-foreground">
+          <LockIcon className="size-3" aria-hidden />
+          Assinantes
+        </span>
+      ) : null}
     </p>
   )
 }

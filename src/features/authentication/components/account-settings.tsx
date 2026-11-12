@@ -180,7 +180,11 @@ function ProfileCard() {
 /** Página "Minha conta": perfil, assinatura e faturas. */
 export function AccountSettings() {
   const { status } = useAuth()
-  const [tab, setTab] = useState("perfil")
+  // /minha-conta?aba=assinatura abre direto na aba (ex.: vindo de notícia exclusiva).
+  const [tab, setTab] = useState(() => {
+    const aba = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("aba")
+    return aba === "assinatura" || aba === "faturas" ? aba : "perfil"
+  })
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="gap-6">

@@ -141,6 +141,17 @@ service cloud.firestore {
     match /articles/{id} {
       allow read: if resource.data.status == 'published' || isStaff();
       allow create, update, delete: if isStaff();
+
+      // Texto completo das notícias exclusivas/parciais: só assinantes ativos
+      // (de notícia publicada) e a equipe. O documento público guarda só a
+      // prévia, então o conteúdo pago não vaza pelo banco.
+      match /privado/{doc} {
+        allow read: if isStaff() || (
+          signedIn() && !isDisabled() && isActiveSubscriber()
+            && get(/databases/$(database)/documents/articles/$(id)).data.status == 'published'
+        );
+        allow create, update, delete: if isStaff();
+      }
     }
 
     // ── Assinatura digital e faturas ─────────────────────────────

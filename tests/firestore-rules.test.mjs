@@ -109,6 +109,8 @@ beforeEach(async () => {
     await setDoc(doc(fs, "assinaturas", "alice"), subscription("alice", { started_at: new Date(), created_at: new Date(), updated_at: new Date() }))
     await setDoc(doc(fs, "faturas", "alice_2026-12"), { uid: "alice", amount_cents: 2990, status: "aberta" })
     await setDoc(doc(fs, "subscribers", "s1"), { name: "Assinante impresso", address: "Rua B" })
+    await setDoc(doc(fs, "articles", "pub", "privado", "conteudo"), { body: "<p>texto pago</p>" })
+    await setDoc(doc(fs, "articles", "draft", "privado", "conteudo"), { body: "<p>rascunho pago</p>" })
   })
 })
 
@@ -226,6 +228,18 @@ describe("ataques que precisam ser recusados", () => {
   test("editor muda a mensalidade", () =>
     assertFails(setDoc(doc(db("editor"), "config", "assinatura"), { monthly_price_cents: 1 })))
 
+  test("visitante lê o texto exclusivo de assinantes", () =>
+    assertFails(getDoc(doc(anon(), "articles", "pub", "privado", "conteudo"))))
+
+  test("leitor não assinante lê o texto exclusivo", () =>
+    assertFails(getDoc(doc(db("bob"), "articles", "pub", "privado", "conteudo"))))
+
+  test("assinante lê texto exclusivo de rascunho", () =>
+    assertFails(getDoc(doc(db("alice"), "articles", "draft", "privado", "conteudo"))))
+
+  test("assinante altera o texto exclusivo", () =>
+    assertFails(setDoc(doc(db("alice"), "articles", "pub", "privado", "conteudo"), { body: "x" })))
+
   test("coleção desconhecida", () => assertFails(setDoc(doc(db("admin"), "qualquer", "x"), { a: 1 })))
 })
 
@@ -296,6 +310,14 @@ describe("usos normais que precisam funcionar", () => {
   test("editor cuida de notícias e do cadastro de entrega", async () => {
     await assertSucceeds(setDoc(doc(db("editor"), "articles", "nova"), { status: "draft", title: "Nova" }))
     await assertSucceeds(getDoc(doc(db("editor"), "subscribers", "s1")))
+  })
+
+  test("assinante lê o texto exclusivo de notícia publicada", () =>
+    assertSucceeds(getDoc(doc(db("alice"), "articles", "pub", "privado", "conteudo"))))
+
+  test("equipe lê e grava o texto exclusivo", async () => {
+    await assertSucceeds(getDoc(doc(db("editor"), "articles", "draft", "privado", "conteudo")))
+    await assertSucceeds(setDoc(doc(db("editor"), "articles", "pub", "privado", "conteudo"), { body: "<p>novo</p>" }))
   })
 
   test("leitor envia a própria foto de perfil", () =>
