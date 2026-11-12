@@ -24,6 +24,7 @@ import { sendResetEmail } from "@/features/authentication/password-reset"
 import { roleLabels } from "@/features/authentication/roles"
 import { updateProfile } from "@/features/team/queries"
 import { InvoicesPanel } from "@/features/billing/components/invoices-panel"
+import { SubscribeCallout } from "@/features/billing/components/subscribe-callout"
 import { SubscriptionPanel } from "@/features/billing/components/subscription-panel"
 import { getFirebaseAuth } from "@/lib/firebase/client"
 import { uploadImage } from "@/lib/images/upload"
@@ -190,9 +191,10 @@ function ProfileCard() {
 /** Página "Minha conta": perfil, assinatura e faturas. */
 export function AccountSettings() {
   const { status } = useAuth()
+  const [tab, setTab] = useState("perfil")
 
   return (
-    <Tabs defaultValue="perfil" className="gap-6">
+    <Tabs value={tab} onValueChange={setTab} className="gap-6">
       <TabsList>
         <TabsTrigger value="perfil">Perfil</TabsTrigger>
         <TabsTrigger value="assinatura" disabled={status !== "authenticated"}>
@@ -206,18 +208,29 @@ export function AccountSettings() {
       <TabsContent value="perfil">
         <div className="grid gap-4 lg:grid-cols-2">
           <ProfileCard />
-          <Card className="self-start">
-            <CardHeader>
-              <CardTitle>Aparência</CardTitle>
-              <CardDescription>
-                Por padrão, o site acompanha o tema do seu navegador. Escolha Claro ou
-                Escuro para fixar. A escolha vale para este navegador.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ThemeSwitcher />
-            </CardContent>
-          </Card>
+          <div className="space-y-4 self-start">
+            <Card>
+              <CardHeader>
+                <CardTitle>Aparência</CardTitle>
+                <CardDescription>
+                  Por padrão, o site acompanha o tema do seu navegador. Escolha Claro
+                  ou Escuro para fixar. A escolha vale para este navegador.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ThemeSwitcher />
+              </CardContent>
+            </Card>
+            {/* Chamada para assinar: some depois que a pessoa assina. */}
+            {status === "authenticated" ? (
+              <SubscribeCallout
+                onSubscribe={() => {
+                  setTab("assinatura")
+                  window.scrollTo({ top: 0, behavior: "smooth" })
+                }}
+              />
+            ) : null}
+          </div>
         </div>
       </TabsContent>
 
