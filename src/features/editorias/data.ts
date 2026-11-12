@@ -21,7 +21,7 @@ import { slugify } from "@/lib/validations/article"
 /**
  * Editorias (seções do jornal) ficam na coleção `editorias` e são geridas no
  * painel. As notícias guardam o **id** da editoria, então renomear não quebra
- * nada; o `slug` serve só para os endereços (/noticias#cidade).
+ * nada; o `slug` identifica a seção na página /noticias.
  */
 export const EDITORIA_COLORS = {
   azul: { label: "Azul", css: "var(--azul)" },

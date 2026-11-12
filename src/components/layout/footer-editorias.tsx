@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { EditoriaLink } from "@/components/layout/editoria-link"
 
 import { useEditorias } from "@/features/editorias/editorias-context"
 
@@ -11,9 +11,9 @@ export function FooterEditorias({ linkClass }: { linkClass: string }) {
     <ul className="grid gap-2">
       {menu.map((editoria) => (
         <li key={editoria.id}>
-          <Link href={`/noticias#${editoria.slug}`} className={linkClass}>
+          <EditoriaLink slug={editoria.slug} className={linkClass}>
             {editoria.name}
-          </Link>
+          </EditoriaLink>
         </li>
       ))}
     </ul>

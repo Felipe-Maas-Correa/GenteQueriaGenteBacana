@@ -16,6 +16,7 @@ export function SmoothScroll() {
     gsap.registerPlugin(ScrollTrigger)
     const lenis = new Lenis({ lerp: 0.12, anchors: true })
     lenis.on("scroll", ScrollTrigger.update)
+    ;(window as unknown as { __lenis?: Lenis }).__lenis = lenis
 
     const tick = (time: number) => lenis.raf(time * 1000)
     gsap.ticker.add(tick)
@@ -24,6 +25,7 @@ export function SmoothScroll() {
     return () => {
       gsap.ticker.remove(tick)
       lenis.destroy()
+      delete (window as unknown as { __lenis?: Lenis }).__lenis
     }
   }, [])
 

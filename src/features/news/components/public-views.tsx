@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { ArrowLeftIcon, NewspaperIcon, SearchXIcon } from "lucide-react"
 
@@ -9,6 +10,7 @@ import { Reveal, RevealGroup, RevealItem } from "@/components/shared/reveal"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAsync } from "@/hooks/use-async"
+import { scrollToSection, takePendingEditoria } from "@/components/layout/editoria-link"
 import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
@@ -86,6 +88,16 @@ export function HomeFeed() {
 export function NewsIndex() {
   const { data, loading, error, reload } = useAsync(listPublishedArticles, [])
   const { editorias } = useEditorias()
+
+  // Depois que as seções aparecem, rola até a editoria escolhida no menu.
+  // Links antigos com "#cidade" também funcionam, e o "#" sai do endereço.
+  useEffect(() => {
+    if (!data || !editorias.length) return
+    const fromHash = window.location.hash.slice(1)
+    if (fromHash) window.history.replaceState(null, "", window.location.pathname)
+    const target = takePendingEditoria() ?? (fromHash || null)
+    if (target) requestAnimationFrame(() => scrollToSection(target))
+  }, [data, editorias.length])
 
   if (loading && !data) return <GridSkeleton />
   if (error) return <LoadError onRetry={reload} />

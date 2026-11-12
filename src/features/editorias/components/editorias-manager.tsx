@@ -166,7 +166,7 @@ function EditoriaRow({
             <span className="sr-only">(renomear)</span>
           </button>
         )}
-        <p className="text-xs text-muted-foreground">/noticias#{editoria.slug}</p>
+        <p className="text-xs text-muted-foreground">Seção “{editoria.name}” em Todas as notícias</p>
       </div>
 
       <ColorSelect

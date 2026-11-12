@@ -16,6 +16,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import { EditoriaLink } from "@/components/layout/editoria-link"
 import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 
@@ -80,13 +81,9 @@ export function SiteHeader() {
 
         <nav aria-label="Editorias" className="hidden items-center gap-7 md:flex">
           {menu.map((editoria) => (
-            <Link
-              key={editoria.id}
-              href={`/noticias#${editoria.slug}`}
-              className={navLinkClass}
-            >
+            <EditoriaLink key={editoria.id} slug={editoria.slug} className={navLinkClass}>
               {editoria.name}
-            </Link>
+            </EditoriaLink>
           ))}
         </nav>
 
@@ -123,15 +120,23 @@ export function SiteHeader() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.05 * index + 0.1 }}
                     >
-                      <Link
-                        href={
-                          editoria.slug ? `/noticias#${editoria.slug}` : "/noticias"
-                        }
-                        onClick={() => setMenuOpen(false)}
-                        className="type-h2 block rounded-sm border-b py-3 outline-none transition-colors hover:text-brand focus-visible:ring-3 focus-visible:ring-ring/40"
-                      >
-                        {editoria.name}
-                      </Link>
+                      {editoria.slug ? (
+                        <EditoriaLink
+                          slug={editoria.slug}
+                          onNavigate={() => setMenuOpen(false)}
+                          className="type-h2 block rounded-sm border-b py-3 outline-none transition-colors hover:text-brand focus-visible:ring-3 focus-visible:ring-ring/40"
+                        >
+                          {editoria.name}
+                        </EditoriaLink>
+                      ) : (
+                        <Link
+                          href="/noticias"
+                          onClick={() => setMenuOpen(false)}
+                          className="type-h2 block rounded-sm border-b py-3 outline-none transition-colors hover:text-brand focus-visible:ring-3 focus-visible:ring-ring/40"
+                        >
+                          {editoria.name}
+                        </Link>
+                      )}
                     </motion.div>
                   )
                 )}
