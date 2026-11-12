@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { LockIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -68,9 +68,31 @@ export function ArticleImage({
   imgClassName?: string
 }) {
   const { tone } = useEditorias()
+  const slides = article.image_url ? [article.image_url, ...(article.gallery ?? [])] : []
+  const [current, setCurrent] = useState(0)
+  useEffect(() => {
+    if (slides.length < 2) return
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    const timer = window.setInterval(() => setCurrent((value) => (value + 1) % slides.length), 4500)
+    return () => window.clearInterval(timer)
+  }, [slides.length])
   return (
     <div className={cn("relative overflow-hidden bg-muted", className)}>
-      {article.image_url ? (
+      {slides.length > 1 ? (
+        // Capa em carrossel: as fotos se alternam sozinhas no cartão.
+        slides.map((src, index) => (
+          <StoredImage
+            key={`${src}-${index}`}
+            src={src}
+            alt={index === 0 ? article.image_caption || "" : ""}
+            className={cn(
+              "absolute inset-0 size-full object-cover transition-opacity duration-1000",
+              index === current ? "opacity-100" : "opacity-0",
+              imgClassName
+            )}
+          />
+        ))
+      ) : article.image_url ? (
         // Fotos do Firestore (enviadas pelo painel) ou endereços externos.
         <StoredImage
           src={article.image_url}
