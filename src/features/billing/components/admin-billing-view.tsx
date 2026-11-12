@@ -110,13 +110,14 @@ function PriceSettings({
   const [price, setPrice] = useState(
     config.monthly_price_cents ? (config.monthly_price_cents / 100).toFixed(2).replace(".", ",") : ""
   )
-  const [dueDay, setDueDay] = useState(String(config.due_day))
   const { pending, run } = useRunner(onSaved)
 
   const save = () => {
     const cents = parseCents(price)
     if (cents === null) return toast.error("Informe o valor da mensalidade (ex.: 29,90).")
-    run(() => saveBillingConfig({ monthly_price_cents: cents, due_day: Number(dueDay) }))
+    // O dia do vencimento é escolhido por cada assinante; o padrão salvo
+    // (config.due_day) só vale para assinaturas antigas, sem dia definido.
+    run(() => saveBillingConfig({ monthly_price_cents: cents, due_day: config.due_day }))
   }
 
   return (
@@ -125,12 +126,13 @@ function PriceSettings({
         <CardTitle>Mensalidade padrão</CardTitle>
         <CardDescription>
           Valor cobrado de todos os assinantes, exceto quem tem preço especial. Mudanças
-          valem para as próximas faturas geradas.
+          valem para as próximas faturas geradas. O dia do vencimento é escolhido por
+          cada assinante ao assinar.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form
-          className="grid gap-4 sm:grid-cols-2"
+          className="grid max-w-xs gap-4"
           onSubmit={(event) => {
             event.preventDefault()
             save()
@@ -147,24 +149,12 @@ function PriceSettings({
               onChange={(e) => setPrice(e.target.value)}
             />
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="vencimento">Dia do vencimento</Label>
-            <Input
-              id="vencimento"
-              type="number"
-              min={1}
-              max={28}
-              value={dueDay}
-              disabled={!canEdit}
-              onChange={(e) => setDueDay(e.target.value)}
-            />
-          </div>
           {canEdit ? (
-            <Button type="submit" loading={pending} className="justify-self-start sm:col-span-2">
+            <Button type="submit" loading={pending} className="justify-self-start">
               Salvar mensalidade
             </Button>
           ) : (
-            <p className="type-caption text-muted-foreground sm:col-span-2">
+            <p className="type-caption text-muted-foreground">
               Somente administradores alteram a mensalidade.
             </p>
           )}
@@ -556,7 +546,7 @@ export function AdminBillingView() {
       </TabsContent>
       <TabsContent value="mensalidade">
         <PriceSettings
-          key={data.config.monthly_price_cents + "-" + data.config.due_day}
+          key={data.config.monthly_price_cents}
           config={data.config}
           canEdit={user?.role === "admin"}
           onSaved={reload}
