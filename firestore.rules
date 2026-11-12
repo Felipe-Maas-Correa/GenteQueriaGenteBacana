@@ -131,5 +131,55 @@ service cloud.firestore {
       allow read: if resource.data.status == 'published' || isStaff();
       allow create, update, delete: if isStaff();
     }
+
+    // ── Comentários ─────────────────────────────────────────────
+    // Assinante ativo: o selo do comentário precisa bater com isto.
+    function isActiveSubscriber() {
+      let path = /databases/$(database)/documents/assinaturas/$(request.auth.uid);
+      return exists(path) && get(path).data.status == 'ativa';
+    }
+
+    // Curtir/descurtir: muda só liked_by, acrescentando ou tirando o próprio uid.
+    function isOwnLikeToggle() {
+      let before = resource.data.liked_by.toSet();
+      let after = request.resource.data.liked_by.toSet();
+      let me = [request.auth.uid].toSet();
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['liked_by'])
+        && ((after.difference(before) == me && before.difference(after).size() == 0)
+          || (before.difference(after) == me && after.difference(before).size() == 0));
+    }
+
+    // Total de respostas: só sobe ou desce de um em um.
+    function isReplyCountStep() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reply_count'])
+        && (request.resource.data.reply_count == resource.data.reply_count + 1
+          || request.resource.data.reply_count == resource.data.reply_count - 1);
+    }
+
+    // Apagar (suave): autor ou equipe; o texto some e o comentário fica marcado.
+    function isSoftDelete() {
+      return (resource.data.author_uid == request.auth.uid || isStaff())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'text'])
+        && request.resource.data.deleted == true
+        && request.resource.data.text == '';
+    }
+
+    match /comentarios/{id} {
+      allow read: if true;
+      allow create: if signedIn()
+                    && request.resource.data.author_uid == request.auth.uid
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 1000
+                    && request.resource.data.article_id is string
+                    && request.resource.data.liked_by.size() == 0
+                    && request.resource.data.reply_count == 0
+                    && request.resource.data.deleted == false
+                    && request.resource.data.author_subscriber == isActiveSubscriber()
+                    && (request.resource.data.parent_id == null
+                        || exists(/databases/$(database)/documents/comentarios/$(request.resource.data.parent_id)));
+      allow update: if signedIn() && (isOwnLikeToggle() || isReplyCountStep() || isSoftDelete());
+      allow delete: if isStaff();
+    }
   }
 }

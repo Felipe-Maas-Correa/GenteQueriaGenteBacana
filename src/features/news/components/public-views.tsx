@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAsync } from "@/hooks/use-async"
 import { scrollToSection, takePendingEditoria } from "@/components/layout/editoria-link"
+import { CommentsSection } from "@/features/comments/components/comments-section"
 import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
@@ -264,6 +265,8 @@ export function ArticleReader({ slug }: { slug: string }) {
       <div className="page-container py-12 sm:py-16">
         <ArticleBody body={article.body} />
       </div>
+
+      <CommentsSection articleId={article.id} articleSlug={article.slug} />
 
       {data.related.length ? (
         <aside aria-labelledby="relacionadas" className="border-t bg-muted/50 py-14 sm:py-20">
