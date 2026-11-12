@@ -221,11 +221,12 @@ export function ArticleForm({ article }: { article?: Article }) {
                 : result.message
           )
           reset({ ...input, status })
-          if (!article && result.data) {
-            router.replace(routes.editArticle(result.data.id))
-          } else {
-            router.refresh()
-          }
+          // Publicada (no ar agora): abre a notícia no site para ver como ficou.
+          // Rascunho ou agendada ainda não aparece no site: volta para a lista.
+          const live =
+            status === "published" &&
+            !(input.publish_at && new Date(input.publish_at).getTime() > Date.now())
+          router.push(live ? routes.article(input.slug) : LIST_PATH)
           return
         }
         toast.error(result.message)
