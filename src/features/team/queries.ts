@@ -32,7 +32,7 @@ export async function listProfiles(): Promise<Profile[]> {
 
 export async function updateProfile(
   id: string,
-  changes: { role?: UserRole; name?: string }
+  changes: { role?: UserRole; name?: string; photo_url?: string }
 ): Promise<ActionResult> {
   try {
     await updateDoc(doc(getDb(), "profiles", id), {

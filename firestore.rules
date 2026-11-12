@@ -69,13 +69,48 @@ service cloud.firestore {
 
     // Fotos das notícias em base64: qualquer visitante lê (as fotos aparecem
     // no site, que é estático); só a equipe envia ou apaga.
+    // Leitores também enviam a própria foto de perfil (kind "avatar", pequena).
     match /imagens/{id} {
       allow read: if true;
       allow delete: if isStaff();
-      allow create: if isStaff()
-                    && request.resource.data.data is string
-                    && request.resource.data.data.size() < 900000;
+      allow create: if request.resource.data.data is string && (
+        (isStaff() && request.resource.data.data.size() < 900000) ||
+        (signedIn()
+          && request.resource.data.kind == 'avatar'
+          && request.resource.data.created_by == request.auth.uid
+          && request.resource.data.data.size() < 120000)
+      );
       allow update: if false;
+    }
+
+    // ── Assinatura digital e faturas ───────────────────────────
+    // Mensalidade padrão: quem está logado lê; só administradores alteram.
+    match /config/assinatura {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Uma assinatura por leitor (id = uid). O leitor pede (pendente) e pode
+    // atualizar telefone/endereço; status e preço especial são da equipe.
+    match /assinaturas/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+      allow create: if signedIn()
+                    && request.auth.uid == uid
+                    && request.resource.data.status == 'pendente'
+                    && request.resource.data.custom_price_cents == null;
+      allow update: if isStaff() || (
+        signedIn() && request.auth.uid == uid
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.custom_price_cents == resource.data.custom_price_cents
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Faturas: cada um lê as suas (consulta filtrada por uid); a equipe
+    // gera e dá baixa. A futura integração de pagamento grava pelo servidor.
+    match /faturas/{id} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isStaff());
+      allow create, update, delete: if isStaff();
     }
 
     // Notícias: qualquer visitante lê as publicadas; a equipe lê e edita tudo.

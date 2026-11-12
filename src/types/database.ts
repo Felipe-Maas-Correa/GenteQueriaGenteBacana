@@ -39,6 +39,8 @@ export type Profile = {
   name: string
   email: string
   role: UserRole
+  /** Foto de perfil ("/api/imagens/{id}"), opcional. */
+  photo_url?: string
   created_at: string
   updated_at: string
 }

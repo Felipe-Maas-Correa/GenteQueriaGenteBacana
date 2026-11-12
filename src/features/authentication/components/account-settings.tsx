@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useRef, useState, useTransition } from "react"
 import { updateProfile as updateAuthProfile } from "firebase/auth"
-import { KeyRoundIcon } from "lucide-react"
+import { CameraIcon, KeyRoundIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Field } from "@/components/forms/field"
 import { ThemeSwitcher } from "@/components/shared/theme-switcher"
+import { UserAvatar } from "@/components/shared/user-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,7 +23,11 @@ import { useAuth } from "@/features/authentication/auth-context"
 import { sendResetEmail } from "@/features/authentication/password-reset"
 import { roleLabels } from "@/features/authentication/roles"
 import { updateProfile } from "@/features/team/queries"
+import { InvoicesPanel } from "@/features/billing/components/invoices-panel"
+import { SubscriptionPanel } from "@/features/billing/components/subscription-panel"
 import { getFirebaseAuth } from "@/lib/firebase/client"
+import { uploadImage } from "@/lib/images/upload"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 function ProfileCard() {
   const { status, user } = useAuth()
@@ -30,6 +35,8 @@ function ProfileCard() {
   const [error, setError] = useState<string>()
   const [saving, startSaving] = useTransition()
   const [sendingReset, startReset] = useTransition()
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const photoInput = useRef<HTMLInputElement>(null)
 
   if (status === "loading") return <Skeleton className="h-64 w-full" />
   if (status !== "authenticated" || !user) {
@@ -68,6 +75,29 @@ function ProfileCard() {
     })
   }
 
+  const changePhoto = async (file: File | undefined) => {
+    if (!file) return
+    setUploadingPhoto(true)
+    const upload = await uploadImage(file, "avatar")
+    if (upload.ok && upload.data) {
+      const saved = await updateProfile(user.id, { photo_url: upload.data.url })
+      if (saved.ok) toast.success("Foto de perfil atualizada.")
+      else toast.error(saved.message)
+    } else {
+      toast.error(upload.message)
+    }
+    setUploadingPhoto(false)
+    if (photoInput.current) photoInput.current.value = ""
+  }
+
+  const removePhoto = async () => {
+    setUploadingPhoto(true)
+    const saved = await updateProfile(user.id, { photo_url: "" })
+    setUploadingPhoto(false)
+    if (saved.ok) toast.success("Foto removida.")
+    else toast.error(saved.message)
+  }
+
   const resetPassword = () =>
     startReset(async () => {
       const result = await sendResetEmail(user.email)
@@ -82,6 +112,41 @@ function ProfileCard() {
         <CardDescription>Como você aparece no painel e nas notícias.</CardDescription>
       </CardHeader>
       <CardContent>
+        <div className="mb-6 flex items-center gap-4">
+          <UserAvatar name={user.name} photoUrl={user.photoUrl} className="size-20 text-2xl" />
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Foto de perfil</p>
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={photoInput}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                aria-label="Escolher foto de perfil"
+                onChange={(event) => changePhoto(event.target.files?.[0])}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                loading={uploadingPhoto}
+                onClick={() => photoInput.current?.click()}
+              >
+                <CameraIcon aria-hidden />
+                {user.photoUrl ? "Trocar foto" : "Enviar foto"}
+              </Button>
+              {user.photoUrl ? (
+                <Button type="button" size="sm" variant="ghost" disabled={uploadingPhoto} onClick={removePhoto}>
+                  Remover
+                </Button>
+              ) : null}
+            </div>
+            <p className="type-caption text-muted-foreground">
+              Do computador ou da galeria do celular. A foto é recortada em quadrado.
+            </p>
+          </div>
+        </div>
+
         <form
           className="space-y-5"
           onSubmit={(event) => {
@@ -122,23 +187,47 @@ function ProfileCard() {
   )
 }
 
-/** Página "Minha conta": dados do usuário e preferências pessoais. */
+/** Página "Minha conta": perfil, assinatura e faturas. */
 export function AccountSettings() {
+  const { status } = useAuth()
+
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <ProfileCard />
-      <Card className="self-start">
-        <CardHeader>
-          <CardTitle>Aparência</CardTitle>
-          <CardDescription>
-            Por padrão, o site acompanha o tema do seu navegador. Escolha Claro ou
-            Escuro para fixar. A escolha vale para este navegador.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ThemeSwitcher />
-        </CardContent>
-      </Card>
-    </div>
+    <Tabs defaultValue="perfil" className="gap-6">
+      <TabsList>
+        <TabsTrigger value="perfil">Perfil</TabsTrigger>
+        <TabsTrigger value="assinatura" disabled={status !== "authenticated"}>
+          Assinatura
+        </TabsTrigger>
+        <TabsTrigger value="faturas" disabled={status !== "authenticated"}>
+          Faturas
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="perfil">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ProfileCard />
+          <Card className="self-start">
+            <CardHeader>
+              <CardTitle>Aparência</CardTitle>
+              <CardDescription>
+                Por padrão, o site acompanha o tema do seu navegador. Escolha Claro ou
+                Escuro para fixar. A escolha vale para este navegador.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ThemeSwitcher />
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="assinatura">
+        <SubscriptionPanel />
+      </TabsContent>
+
+      <TabsContent value="faturas">
+        <InvoicesPanel />
+      </TabsContent>
+    </Tabs>
   )
 }

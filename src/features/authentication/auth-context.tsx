@@ -53,6 +53,7 @@ export type CurrentUser = {
   name: string
   email: string
   role: UserRole
+  photoUrl: string
 }
 
 type AuthContextValue = {
@@ -77,6 +78,7 @@ function mapUser(firebaseUser: FirebaseUser, profile: Profile | null): CurrentUs
       email.split("@")[0] ||
       "Usuário",
     role: normalizeRole(profile?.role),
+    photoUrl: profile?.photo_url ?? "",
   }
 }
 

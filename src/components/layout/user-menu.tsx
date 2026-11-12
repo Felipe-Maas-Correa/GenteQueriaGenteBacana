@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 import { LayoutDashboardIcon, LogOutIcon, SettingsIcon } from "lucide-react"
 
+import { UserAvatar } from "@/components/shared/user-avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -16,12 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { isStaff, useAuth } from "@/features/authentication/auth-context"
 import { roleLabels } from "@/features/authentication/roles"
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/)
-  const letters = [parts[0]?.[0], parts.length > 1 ? parts.at(-1)?.[0] : ""]
-  return letters.join("").toUpperCase() || "?"
-}
 
 /** Menu do usuário autenticado: identificação, atalhos e saída. */
 export function UserMenu() {
@@ -37,9 +32,7 @@ export function UserMenu() {
         className="flex items-center gap-2.5 rounded-full p-0.5 pr-1 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/40 sm:pr-3"
         aria-label={`Menu de ${user.name}`}
       >
-        <span className="grid size-9 place-items-center rounded-full bg-primary font-display text-sm font-medium text-primary-foreground">
-          {initials(user.name)}
-        </span>
+        <UserAvatar name={user.name} photoUrl={user.photoUrl} />
         <span className="hidden max-w-40 truncate text-sm font-medium sm:block">
           {user.name}
         </span>
@@ -66,7 +59,7 @@ export function UserMenu() {
         <DropdownMenuItem asChild>
           <Link href="/minha-conta">
             <SettingsIcon aria-hidden />
-            Minha conta e tema
+            Minha conta
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

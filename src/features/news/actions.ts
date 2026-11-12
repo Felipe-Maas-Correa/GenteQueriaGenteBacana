@@ -14,8 +14,9 @@ import {
 } from "firebase/firestore"
 
 import { getDb } from "@/lib/firebase/client"
-import { firestoreErrorMessage, withTimeout } from "@/lib/firebase/firestore-helpers"
+import { firestoreErrorMessage } from "@/lib/firebase/firestore-helpers"
 import { actionError, type ActionResult } from "@/lib/utils/action-result"
+import { uploadImage } from "@/lib/images/upload"
 import { articleSchema, type ArticleInput } from "@/lib/validations/article"
 import type { CardSize } from "@/types/database"
 
@@ -132,81 +133,7 @@ export async function saveHomeLayout(
   }
 }
 
-/**
- * Fotos das notícias (gratuito, sem Firebase Storage).
- *
- * A foto é reduzida no navegador e gravada em base64 na coleção `imagens` do
- * Firestore (limite de 1 MiB por documento). A notícia guarda só o endereço
- * /api/imagens/{id}; o navegador busca a foto no Firestore ao exibir
- * (veja image-source.tsx).
- */
-const MAX_SIDE = 1600
-// Base64 cresce ~33%: 700 KB de base64 ≈ 520 KB de imagem, bem abaixo de 1 MiB.
-const MAX_BASE64_LENGTH = 700_000
-
-async function compressImage(
-  file: File
-): Promise<{ base64: string; width: number; height: number }> {
-  const bitmap = await createImageBitmap(file)
-  let side = MAX_SIDE
-  try {
-    // Reduz qualidade e, se preciso, o tamanho até caber no limite.
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height))
-      const canvas = document.createElement("canvas")
-      canvas.width = Math.round(bitmap.width * scale)
-      canvas.height = Math.round(bitmap.height * scale)
-      const context = canvas.getContext("2d")
-      if (!context) throw new Error("canvas")
-      context.fillStyle = "#ffffff" // PNG com transparência vira fundo branco
-      context.fillRect(0, 0, canvas.width, canvas.height)
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-
-      for (const quality of [0.85, 0.75, 0.65]) {
-        const dataUrl = canvas.toDataURL("image/jpeg", quality)
-        const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1)
-        if (base64.length <= MAX_BASE64_LENGTH) {
-          return { base64, width: canvas.width, height: canvas.height }
-        }
-      }
-      side = Math.round(side * 0.8)
-    }
-  } finally {
-    bitmap.close()
-  }
-  throw new Error("too-large")
-}
-
-/** Grava a foto no Firestore e devolve o endereço público dela. */
-export async function uploadArticleImage(
-  file: File
-): Promise<ActionResult<{ url: string }>> {
-  if (!file.type.startsWith("image/")) {
-    return actionError("Selecione um arquivo de imagem (JPG, PNG ou WebP).")
-  }
-  if (file.size > 25 * 1024 * 1024) {
-    return actionError("A foto é muito grande (máximo de 25 MB).")
-  }
-  let image: Awaited<ReturnType<typeof compressImage>>
-  try {
-    image = await compressImage(file)
-  } catch {
-    return actionError("Não foi possível processar esta imagem. Tente outra foto.")
-  }
-  try {
-    const created = await withTimeout(
-      addDoc(collection(getDb(), "imagens"), {
-        data: image.base64,
-        content_type: "image/jpeg",
-        width: image.width,
-        height: image.height,
-        size: Math.round((image.base64.length * 3) / 4),
-        created_at: serverTimestamp(),
-      }),
-      20_000
-    )
-    return { ok: true, message: "Foto enviada.", data: { url: `/api/imagens/${created.id}` } }
-  } catch (error) {
-    return actionError(firestoreErrorMessage(error))
-  }
+/** Fotos das notícias: veja lib/images/upload.ts. */
+export function uploadArticleImage(file: File) {
+  return uploadImage(file, "article")
 }
