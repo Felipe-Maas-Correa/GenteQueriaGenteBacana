@@ -92,6 +92,7 @@ export function ArticleImage({
               src={src}
               alt={index === 0 ? article.image_caption || "" : ""}
               className={cn("size-full object-cover", imgClassName)}
+              fallback={<ArticleVisual tone={tone(article.editoria)} variant={variant} className={cn("size-full", imgClassName)} />}
             />
           </div>
         ))
@@ -101,6 +102,7 @@ export function ArticleImage({
           src={article.image_url}
           alt={article.image_caption || ""}
           className={cn("size-full object-cover", imgClassName)}
+              fallback={<ArticleVisual tone={tone(article.editoria)} variant={variant} className={cn("size-full", imgClassName)} />}
         />
       ) : (
         <ArticleVisual

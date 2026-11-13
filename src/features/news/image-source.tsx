@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { doc, getDoc } from "firebase/firestore"
 import { useAsync } from "@/hooks/use-async"
 import { getDb, getFirebase } from "@/lib/firebase/client"
@@ -58,17 +59,32 @@ export function StoredImage({
   alt = "",
   className,
   loading = "lazy",
+  fallback,
 }: {
   src: string
   alt?: string
   className?: string
   loading?: "lazy" | "eager"
+  /** Mostrado se a foto não carregar (endereço externo fora do ar, etc.). */
+  fallback?: React.ReactNode
 }) {
-  const { data } = useAsync(() => resolveImageSrc(src), [src])
+  const { data, error } = useAsync(() => resolveImageSrc(src), [src])
+  const [broken, setBroken] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState<string | null>(null)
+
+  // Endereço externo que nunca responde (fica "carregando" para sempre):
+  // depois de 10 s, desiste e mostra a alternativa.
+  useEffect(() => {
+    if (!fallback || !data || loaded === src || broken === src) return
+    const timer = window.setTimeout(() => setBroken(src), 10_000)
+    return () => window.clearTimeout(timer)
+  }, [fallback, data, src, loaded, broken])
+
+  if ((error || broken === src) && fallback) return <>{fallback}</>
 
   if (!data) {
     return <span aria-hidden className={cn("block animate-pulse bg-muted", className)} />
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={data} alt={alt} loading={loading} className={className} />
+  return <img src={data} alt={alt} loading={loading} className={className} onError={() => setBroken(src)} onLoad={() => setLoaded(src)} />
 }

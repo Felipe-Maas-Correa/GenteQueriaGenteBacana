@@ -167,26 +167,27 @@ export function TestNewsCard() {
   const count = existing.data?.length ?? 0
   const busy = progress !== null
 
+  // Cria as que faltam e ATUALIZA as que já existem (ex.: troca fotos que
+  // não carregavam), sem precisar apagar antes.
   async function createAll() {
     const inputs = buildTestArticles(editorias)
-    const taken = new Set((existing.data ?? []).map((article) => article.slug))
-    const pending = inputs.filter((input) => !taken.has(input.slug))
-    if (!pending.length) {
-      toast.info("As notícias de teste já existem.")
-      return
-    }
+    const idBySlug = new Map((existing.data ?? []).map((article) => [article.slug, article.id]))
     let created = 0
+    let updated = 0
     let failed = 0
-    for (const [index, input] of pending.entries()) {
-      setProgress(`Criando ${index + 1} de ${pending.length}…`)
-      const result = await saveArticle(null, input)
-      if (result.ok) created += 1
-      else failed += 1
+    for (const [index, input] of inputs.entries()) {
+      setProgress(`Salvando ${index + 1} de ${inputs.length}…`)
+      const id = idBySlug.get(input.slug) ?? null
+      const result = await saveArticle(id, input)
+      if (!result.ok) failed += 1
+      else if (id) updated += 1
+      else created += 1
     }
     setProgress(null)
     existing.reload()
-    if (failed) toast.error(`${created} criadas e ${failed} com erro. Tente de novo para completar.`)
-    else toast.success(`${created} notícias de teste criadas.`)
+    const summary = [created && `${created} criadas`, updated && `${updated} atualizadas`].filter(Boolean).join(" e ")
+    if (failed) toast.error(`${summary || "Nada salvo"}; ${failed} com erro. Tente de novo.`)
+    else toast.success(`Notícias de teste: ${summary}.`)
   }
 
   async function deleteAll() {
@@ -230,7 +231,7 @@ export function TestNewsCard() {
         <div className="flex flex-wrap gap-2">
           <Button onClick={createAll} loading={busy && !confirmDelete} disabled={busy || !editorias.length || existing.loading}>
             <FlaskConicalIcon aria-hidden />
-            Criar notícias de teste
+            {count ? "Atualizar notícias de teste" : "Criar notícias de teste"}
           </Button>
           <Button
             variant="outline"
