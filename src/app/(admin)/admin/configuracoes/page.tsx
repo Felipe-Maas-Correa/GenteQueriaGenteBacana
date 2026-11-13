@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { TestNewsCard } from "@/features/news/components/test-news-card"
 import { isFirebaseConfigured } from "@/lib/firebase/config"
 import { siteConfig } from "@/lib/site"
 import { APP_TIME_ZONE } from "@/lib/utils/format"
@@ -66,6 +67,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Temporário: remover quando não precisar mais das notícias de teste. */}
+        <TestNewsCard />
       </div>
     </div>
   )

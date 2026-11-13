@@ -1,6 +1,7 @@
 import Link from "next/link"
 
 import { Logo } from "@/components/shared/logo"
+import { EditoriaLink } from "@/components/layout/editoria-link"
 import { FooterEditorias } from "@/components/layout/footer-editorias"
 import { siteConfig } from "@/lib/site"
 
@@ -35,9 +36,9 @@ export function SiteFooter() {
           </p>
           <ul className="grid gap-2">
             <li>
-              <Link href="/noticias" className={linkClass}>
+              <EditoriaLink slug="" className={linkClass}>
                 Todas as notícias
-              </Link>
+              </EditoriaLink>
             </li>
             <li>
               <Link href="/login" className={linkClass}>

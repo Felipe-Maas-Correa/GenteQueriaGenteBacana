@@ -17,11 +17,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { EditoriaLink } from "@/components/layout/editoria-link"
+import { HeaderSearch } from "@/components/layout/header-search"
 import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 
 const navLinkClass =
-  "relative rounded-sm py-1 text-sm font-medium text-foreground/75 outline-none transition-colors duration-(--duration-fast) hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:origin-left after:scale-x-0 after:bg-brand after:transition-transform after:duration-(--duration-base) after:ease-emphasized hover:after:scale-x-100"
+  "relative rounded-sm py-1 text-sm font-medium text-foreground/75 outline-none transition-colors duration-(--duration-fast) hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:origin-left after:scale-x-0 after:bg-brand after:transition-transform after:duration-(--duration-base) after:ease-emphasized hover:after:scale-x-100 aria-[current=page]:text-foreground aria-[current=page]:after:scale-x-100"
 
 /** Canto superior direito: menu do usuário conectado, ou Entrar / Criar conta. */
 function HeaderAccount() {
@@ -70,7 +71,7 @@ export function SiteHeader() {
           : "border-transparent bg-background"
       )}
     >
-      <div className="page-container flex h-(--topbar-h) items-center justify-between gap-6">
+      <div className="page-container relative flex h-(--topbar-h) items-center justify-between gap-6">
         <Link
           href="/"
           aria-label="Gente Querida, Gente Bacana — página inicial"
@@ -88,8 +89,9 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="hidden lg:inline-flex">
-            <Link href="/noticias">Todas as notícias</Link>
+          <HeaderSearch />
+          <Button asChild variant="ghost" size="sm" className="hidden xl:inline-flex">
+            <EditoriaLink slug="">Todas as notícias</EditoriaLink>
           </Button>
           <HeaderAccount />
 
@@ -120,23 +122,13 @@ export function SiteHeader() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.05 * index + 0.1 }}
                     >
-                      {editoria.slug ? (
-                        <EditoriaLink
-                          slug={editoria.slug}
-                          onNavigate={() => setMenuOpen(false)}
-                          className="type-h2 block rounded-sm border-b py-3 outline-none transition-colors hover:text-brand focus-visible:ring-3 focus-visible:ring-ring/40"
-                        >
-                          {editoria.name}
-                        </EditoriaLink>
-                      ) : (
-                        <Link
-                          href="/noticias"
-                          onClick={() => setMenuOpen(false)}
-                          className="type-h2 block rounded-sm border-b py-3 outline-none transition-colors hover:text-brand focus-visible:ring-3 focus-visible:ring-ring/40"
-                        >
-                          {editoria.name}
-                        </Link>
-                      )}
+                      <EditoriaLink
+                        slug={editoria.slug}
+                        onNavigate={() => setMenuOpen(false)}
+                        className="type-h2 block rounded-sm border-b py-3 outline-none transition-colors hover:text-brand focus-visible:ring-3 focus-visible:ring-ring/40 aria-[current=page]:text-brand"
+                      >
+                        {editoria.name}
+                      </EditoriaLink>
                     </motion.div>
                   )
                 )}
@@ -161,9 +153,9 @@ export function SiteHeader() {
                 {editoria.name}
               </EditoriaLink>
             ))}
-            <Link href="/noticias" className={cn(navLinkClass, "shrink-0 whitespace-nowrap pr-6")}>
+            <EditoriaLink slug="" className={cn(navLinkClass, "shrink-0 whitespace-nowrap pr-6")}>
               Todas
-            </Link>
+            </EditoriaLink>
           </div>
         </nav>
       ) : null}

@@ -13,7 +13,7 @@ export default function NewsIndexPage() {
     <div className="page-container py-10 sm:py-14">
       <Reveal as="header" className="max-w-3xl">
         <p className="type-overline text-brand">Notícias</p>
-        <h1 className="type-h1 mt-3">Tudo o que publicamos</h1>
+        <h1 className="type-h1 mt-3">Tudo o que publicamos, por editoria</h1>
       </Reveal>
       <div className="mt-12 lg:mt-16">
         <NewsIndex />
