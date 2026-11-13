@@ -4,11 +4,14 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 
 /**
- * Leva até a seção de uma editoria na página /noticias SEM usar "#" no
- * endereço (o dono prefere a barra limpa). O destino vai pela sessionStorage
- * e a página rola até ele depois que as notícias carregam.
+ * Abre /noticias filtrada pela editoria SEM mudar o endereço (o dono prefere
+ * a barra limpa). O filtro vai pela sessionStorage (ou por evento, se a
+ * página já estiver aberta).
  */
 const PENDING_KEY = "gqgb:editoria-alvo"
+
+/** Evento disparado ao clicar numa editoria estando já em /noticias. */
+export const EDITORIA_EVENT = "gqgb:editoria"
 
 type LenisLike = { scrollTo: (target: Element, options?: { offset?: number }) => void }
 
@@ -56,7 +59,11 @@ export function EditoriaLink({
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
         event.preventDefault()
         onNavigate?.()
-        if (pathname === "/noticias" && scrollToSection(slug)) return
+        if (pathname === "/noticias") {
+          // Já na página: ela troca o filtro na hora.
+          window.dispatchEvent(new CustomEvent(EDITORIA_EVENT, { detail: slug }))
+          return
+        }
         try {
           sessionStorage.setItem(PENDING_KEY, slug)
         } catch {

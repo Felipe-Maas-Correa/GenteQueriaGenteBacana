@@ -3,14 +3,14 @@
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, LockIcon, NewspaperIcon, SearchXIcon } from "lucide-react"
+import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, LockIcon, NewspaperIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
 import { Reveal, RevealGroup, RevealItem } from "@/components/shared/reveal"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAsync } from "@/hooks/use-async"
-import { scrollToSection, takePendingEditoria } from "@/components/layout/editoria-link"
+import { EDITORIA_EVENT, takePendingEditoria } from "@/components/layout/editoria-link"
 import { CommentsSection } from "@/features/comments/components/comments-section"
 import { useEditorias } from "@/features/editorias/editorias-context"
 import { useAuth } from "@/features/authentication/auth-context"
@@ -90,63 +90,164 @@ export function HomeFeed() {
 
 /* ── Índice de notícias ─────────────────────────────────────── */
 
+const normalize = (text: string) =>
+  text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+
 export function NewsIndex() {
   const { data, loading, error, reload } = useAsync(listPublishedArticles, [])
   const { editorias } = useEditorias()
+  const [selected, setSelected] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
 
-  // Depois que as seções aparecem, rola até a editoria escolhida no menu.
+  // Editoria escolhida no menu (vindo de outra página ou desta mesma).
   // Links antigos com "#cidade" também funcionam, e o "#" sai do endereço.
   useEffect(() => {
-    if (!data || !editorias.length) return
     const fromHash = window.location.hash.slice(1)
     if (fromHash) window.history.replaceState(null, "", window.location.pathname)
     const target = takePendingEditoria() ?? (fromHash || null)
-    if (target) requestAnimationFrame(() => scrollToSection(target))
-  }, [data, editorias.length])
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lê a escolha feita antes de abrir a página
+    if (target) setSelected(target)
+    const onPick = (event: Event) => {
+      setSelected((event as CustomEvent<string>).detail)
+      setSearch("")
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+    window.addEventListener(EDITORIA_EVENT, onPick)
+    return () => window.removeEventListener(EDITORIA_EVENT, onPick)
+  }, [])
 
   if (loading && !data) return <GridSkeleton />
   if (error) return <LoadError onRetry={reload} />
 
+  const all = data ?? []
+  const current = editorias.find((editoria) => editoria.slug === selected) ?? null
+  const terms = normalize(search.trim()).split(/\s+/).filter(Boolean)
+  const filtering = Boolean(current || terms.length)
+  const results = all.filter((article) => {
+    if (current && article.editoria !== current.id) return false
+    if (!terms.length) return true
+    const haystack = normalize(`${article.title} ${article.excerpt} ${article.kicker} ${article.author}`)
+    return terms.every((term) => haystack.includes(term))
+  })
+
   const sections = editorias
     .map((editoria) => ({
       ...editoria,
-      articles: (data ?? []).filter((a) => a.editoria === editoria.id),
+      articles: all.filter((a) => a.editoria === editoria.id),
     }))
     .filter((section) => section.articles.length > 0)
 
-  if (!sections.length) {
-    return <NoNews message="Assim que a redação publicar, as notícias aparecem aqui por editoria." />
-  }
+  const chipClass = (active: boolean) =>
+    cn(
+      "shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+      active ? "border-foreground bg-foreground text-background" : "hover:bg-muted"
+    )
 
   return (
-    <div className="space-y-16 lg:space-y-20">
-      {sections.map((section) => (
-        <section
-          key={section.id}
-          id={section.slug}
-          aria-labelledby={`editoria-${section.slug}`}
-          className="grid scroll-mt-24 gap-8 border-t-2 border-foreground pt-6 lg:grid-cols-12"
-        >
-          <h2
-            id={`editoria-${section.slug}`}
-            className="type-h2 lg:sticky lg:top-[calc(var(--topbar-h)+2rem)] lg:col-span-3 lg:self-start"
-          >
-            {section.name}
-          </h2>
-          <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:col-span-9">
-            {section.articles.map((article, index) => (
-              <ArticleCard
-                key={article.id}
-                article={article}
-                size="small"
-                showImage
-                showExcerpt
-                variant={(index % 3) as 0 | 1 | 2}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+    <div className="space-y-10">
+      <div className="space-y-4">
+        <div className="relative max-w-xl">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Pesquisar notícias…"
+            aria-label="Pesquisar notícias"
+            className="h-12 w-full rounded-full border bg-background pr-12 pl-12 text-base outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/40 [&::-webkit-search-cancel-button]:hidden"
+          />
+          {search ? (
+            <button
+              type="button"
+              aria-label="Limpar pesquisa"
+              onClick={() => setSearch("")}
+              className="absolute top-1/2 right-3 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+            >
+              <XIcon className="size-4" />
+            </button>
+          ) : null}
+        </div>
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+          <button type="button" className={chipClass(!current)} onClick={() => setSelected(null)}>
+            Todas
+          </button>
+          {editorias.map((editoria) => (
+            <button
+              key={editoria.id}
+              type="button"
+              aria-pressed={current?.id === editoria.id}
+              className={chipClass(current?.id === editoria.id)}
+              onClick={() => setSelected(current?.id === editoria.id ? null : editoria.slug)}
+            >
+              {editoria.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {filtering ? (
+        results.length ? (
+          <section aria-live="polite">
+            <p className="type-small mb-6 text-muted-foreground">
+              {results.length} {results.length === 1 ? "notícia" : "notícias"}
+              {current ? ` em ${current.name}` : ""}
+              {terms.length ? ` para “${search.trim()}”` : ""}
+            </p>
+            <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+              {results.map((article, index) => (
+                <ArticleCard
+                  key={article.id}
+                  article={article}
+                  size="small"
+                  showImage
+                  showExcerpt
+                  variant={(index % 3) as 0 | 1 | 2}
+                />
+              ))}
+            </div>
+          </section>
+        ) : (
+          <NoNews
+            message={
+              terms.length
+                ? "Nenhuma notícia encontrada. Tente outras palavras ou outra editoria."
+                : "Ainda não há notícias publicadas nesta editoria."
+            }
+          />
+        )
+      ) : !sections.length ? (
+        <NoNews message="Assim que a redação publicar, as notícias aparecem aqui por editoria." />
+      ) : (
+        <div className="space-y-16 lg:space-y-20">
+          {sections.map((section) => (
+            <section
+              key={section.id}
+              id={section.slug}
+              aria-labelledby={`editoria-${section.slug}`}
+              className="grid scroll-mt-24 gap-8 border-t-2 border-foreground pt-6 lg:grid-cols-12"
+            >
+              <h2
+                id={`editoria-${section.slug}`}
+                className="type-h2 lg:sticky lg:top-[calc(var(--topbar-h)+2rem)] lg:col-span-3 lg:self-start"
+              >
+                {section.name}
+              </h2>
+              <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:col-span-9">
+                {section.articles.map((article, index) => (
+                  <ArticleCard
+                    key={article.id}
+                    article={article}
+                    size="small"
+                    showImage
+                    showExcerpt
+                    variant={(index % 3) as 0 | 1 | 2}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
