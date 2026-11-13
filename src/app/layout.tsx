@@ -57,6 +57,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} h-full antialiased print:h-auto`}
     >
+      <head>
+        {/* Abre a conexão com o banco enquanto a página ainda carrega. */}
+        <link rel="preconnect" href="https://firestore.googleapis.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
+      </head>
       <body className="flex min-h-full flex-col print:block print:min-h-0">
         <AppProviders>{children}</AppProviders>
       </body>

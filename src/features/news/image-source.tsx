@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { doc, getDoc } from "firebase/firestore"
+import { useEffect, useRef, useState } from "react"
+import { doc, getDoc, getDocFromCache } from "firebase/firestore"
 import { useAsync } from "@/hooks/use-async"
 import { getDb, getFirebase } from "@/lib/firebase/client"
 import { cn } from "@/lib/utils"
@@ -30,7 +30,13 @@ export function resolveImageSrc(src: string): Promise<string> {
   const cached = cache.get(src)
   if (cached) return cached
   const id = src.slice(PREFIX.length)
-  const promise = getDoc(doc(getDb(), "imagens", id)).then((snapshot) => {
+  // Fotos nunca mudam depois de enviadas: tenta primeiro o cache local do
+  // navegador (IndexedDB) e só vai ao servidor se ainda não tiver a foto.
+  const ref = doc(getDb(), "imagens", id)
+  const promise = getDocFromCache(ref)
+    .then((snapshot) => (snapshot.exists() ? snapshot : getDoc(ref)))
+    .catch(() => getDoc(ref))
+    .then((snapshot) => {
     const data = snapshot.data()
     if (!data || typeof data.data !== "string") throw new Error("Imagem não encontrada")
     return `data:${(data.content_type as string) || "image/jpeg"};base64,${data.data}`
@@ -68,7 +74,44 @@ export function StoredImage({
   /** Mostrado se a foto não carregar (endereço externo fora do ar, etc.). */
   fallback?: React.ReactNode
 }) {
-  const { data, error } = useAsync(() => resolveImageSrc(src), [src])
+  // Fotos do banco só são baixadas quando chegam perto da tela (as de cima,
+  // "eager", na hora). Antes, todas as fotos da página baixavam juntas.
+  const holder = useRef<HTMLSpanElement>(null)
+  const [near, setNear] = useState(loading === "eager" || !isStoredImage(src))
+  useEffect(() => {
+    const element = holder.current
+    if (near || !element) return
+    const MARGIN = 600
+    const isClose = () => {
+      const rect = element.getBoundingClientRect()
+      return rect.top < window.innerHeight + MARGIN && rect.bottom > -MARGIN
+    }
+    const reveal = () => {
+      setNear(true)
+      cleanup()
+    }
+    const check = () => {
+      if (isClose()) reveal()
+    }
+    const observer = new IntersectionObserver(
+      (entries) => entries.some((entry) => entry.isIntersecting) && reveal(),
+      { rootMargin: `${MARGIN}px 0px` }
+    )
+    observer.observe(element)
+    // Reforço: o observador pausa em abas em segundo plano; a rolagem e um
+    // teste inicial garantem que as fotos da tela carreguem mesmo assim.
+    const timer = window.setTimeout(check, 50)
+    window.addEventListener("scroll", check, { passive: true })
+    window.addEventListener("resize", check)
+    function cleanup() {
+      observer.disconnect()
+      window.clearTimeout(timer)
+      window.removeEventListener("scroll", check)
+      window.removeEventListener("resize", check)
+    }
+    return cleanup
+  }, [near])
+  const { data, error } = useAsync(() => (near ? resolveImageSrc(src) : Promise.resolve("")), [src, near])
   const [broken, setBroken] = useState<string | null>(null)
   const [loaded, setLoaded] = useState<string | null>(null)
 
@@ -83,7 +126,7 @@ export function StoredImage({
   if ((error || broken === src) && fallback) return <>{fallback}</>
 
   if (!data) {
-    return <span aria-hidden className={cn("block animate-pulse bg-muted", className)} />
+    return <span ref={holder} aria-hidden className={cn("block animate-pulse bg-muted", className)} />
   }
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={data} alt={alt} loading={loading} className={className} onError={() => setBroken(src)} onLoad={() => setLoaded(src)} />

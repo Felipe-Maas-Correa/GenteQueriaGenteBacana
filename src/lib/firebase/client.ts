@@ -1,6 +1,12 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app"
 import { getAuth, type Auth } from "firebase/auth"
-import { getFirestore, type Firestore } from "firebase/firestore"
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from "firebase/firestore"
 
 import { firebaseConfig, isFirebaseConfigured } from "./config"
 
@@ -8,10 +14,25 @@ type FirebaseServices = { app: FirebaseApp; auth: Auth; db: Firestore }
 
 let services: FirebaseServices | null = null
 
+/**
+ * Banco com cache no navegador (IndexedDB): fotos e notícias já vistas
+ * abrem na hora nas próximas visitas. Sem IndexedDB (aba anônima de alguns
+ * navegadores), cai para o modo normal, só em memória.
+ */
+function createDb(app: FirebaseApp): Firestore {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    })
+  } catch {
+    return getFirestore(app)
+  }
+}
+
 /** Inicializa o Firebase uma única vez (padrão singleton). */
 function initFirebase(): FirebaseServices {
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
-  return { app, auth: getAuth(app), db: getFirestore(app) }
+  return { app, auth: getAuth(app), db: createDb(app) }
 }
 
 /** Serviços do Firebase, ou `null` quando as variáveis de ambiente faltam. */
