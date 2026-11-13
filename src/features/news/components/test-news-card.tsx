@@ -95,8 +95,15 @@ function samplesFor(editoria: Editoria): Sample[] {
   }))
 }
 
-const photo = (seed: string, variant = 0) =>
-  `https://picsum.photos/seed/${seed}${variant ? `-${variant}` : ""}/1200/800`
+// placehold.co: o picsum.photos não responde em algumas redes e as fotos
+// ficavam em branco. Cor de fundo varia conforme o texto, para diferenciar.
+const PHOTO_COLORS = ["1d4ed8", "15803d", "b45309", "be123c", "6d28d9", "0f766e", "334155"]
+const photo = (seed: string, variant = 0) => {
+  const hash = [...seed].reduce((total, char) => total + char.charCodeAt(0), variant * 3)
+  const color = PHOTO_COLORS[hash % PHOTO_COLORS.length]
+  const label = encodeURIComponent(`Foto ${variant + 1}`)
+  return `https://placehold.co/1200x800/${color}/ffffff/jpg?text=${label}`
+}
 
 function bodyFor(sample: Sample, editoria: Editoria): string {
   return [
