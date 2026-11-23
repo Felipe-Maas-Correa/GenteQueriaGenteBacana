@@ -6,6 +6,7 @@ import {
   query,
   serverTimestamp,
   Timestamp,
+  updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore"
@@ -67,6 +68,28 @@ async function slugInUse(slug: string, ignoreId: string | null) {
     query(collection(getDb(), "articles"), where("slug", "==", slug))
   )
   return snapshot.docs.some((d) => d.id !== ignoreId)
+}
+
+/**
+ * Refaz a prévia pública das notícias parcialmente abertas a partir do texto
+ * completo (ex.: depois de mudar o tamanho da prévia). Só altera as que
+ * estão diferentes; devolve quantas mudaram. Uso da equipe.
+ */
+export async function refreshPartialPreviews(): Promise<number> {
+  const db = getDb()
+  const snapshot = await getDocs(query(collection(db, "articles"), where("access", "==", "partial")))
+  let changed = 0
+  for (const article of snapshot.docs) {
+    const full = await getDoc(doc(db, "articles", article.id, "privado", "conteudo"))
+    const body = full.data()?.body
+    if (typeof body !== "string" || !body) continue
+    const preview = previewOf(body)
+    if (preview && preview !== article.data().body) {
+      await updateDoc(article.ref, { body: preview })
+      changed++
+    }
+  }
+  return changed
 }
 
 /** Cria (id = null) ou atualiza uma notícia. Devolve o id salvo. */

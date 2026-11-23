@@ -34,6 +34,7 @@ import { formatDateTime, normalizeSearch } from "@/lib/utils/format"
 import { cardSizeLabels } from "@/lib/validations/article"
 import type { Article } from "@/types/database"
 
+import { refreshPartialPreviews } from "../actions"
 import { listAllArticles } from "../queries"
 import { ArticleImage } from "./article-card"
 import { routes } from "@/lib/routes"
@@ -84,7 +85,11 @@ export function ArticlesView() {
   const { data, loading, error, reload } = useAsync(
     () =>
       configured
-        ? listAllArticles().then((articles) => ({ articles, now: Date.now() }))
+        ? // Antes de listar, deixa as prévias das notícias parciais no tamanho atual.
+          refreshPartialPreviews()
+            .catch(() => 0)
+            .then(() => listAllArticles())
+            .then((articles) => ({ articles, now: Date.now() }))
         : Promise.resolve(null),
     [configured]
   )
