@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/features/authentication/auth-context"
 import { ChangePasswordDialog } from "@/features/authentication/components/change-password-dialog"
 import { roleLabels } from "@/features/authentication/roles"
+import { syncMyComments } from "@/features/comments/data"
 import { updateProfile } from "@/features/team/queries"
 import { InvoicesPanel } from "@/features/billing/components/invoices-panel"
 import { SubscribeCallout } from "@/features/billing/components/subscribe-callout"
@@ -68,6 +69,7 @@ function ProfileCard() {
       if (result.ok) {
         const authUser = getFirebaseAuth().currentUser
         if (authUser) await updateAuthProfile(authUser, { displayName: trimmed }).catch(() => {})
+        await syncMyComments(user.id).catch(() => {})
         setName(null)
         toast.success("Seus dados foram atualizados.")
       } else {
@@ -82,6 +84,7 @@ function ProfileCard() {
     const upload = await uploadImage(file, "avatar")
     if (upload.ok && upload.data) {
       const saved = await updateProfile(user.id, { photo_url: upload.data.url })
+      if (saved.ok) await syncMyComments(user.id).catch(() => {})
       if (saved.ok) toast.success("Foto de perfil atualizada.")
       else toast.error(saved.message)
     } else {
@@ -94,6 +97,7 @@ function ProfileCard() {
   const removePhoto = async () => {
     setUploadingPhoto(true)
     const saved = await updateProfile(user.id, { photo_url: "" })
+    if (saved.ok) await syncMyComments(user.id).catch(() => {})
     setUploadingPhoto(false)
     if (saved.ok) toast.success("Foto removida.")
     else toast.error(saved.message)

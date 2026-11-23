@@ -10,6 +10,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore"
 
 import { getDb } from "@/lib/firebase/client"
@@ -125,6 +126,40 @@ export async function addComment(input: {
     }
   } catch (error) {
     return actionError(firestoreErrorMessage(error))
+  }
+}
+
+/**
+ * Atualiza nome, foto e selo de assinante em todos os comentários da pessoa
+ * (chamado depois de trocar nome/foto no perfil ou de assinar). Usa os dados
+ * do banco, exatamente como as regras conferem.
+ */
+export async function syncMyComments(uid: string): Promise<void> {
+  const db = getDb()
+  const [profileSnap, subscriptionSnap, mine] = await Promise.all([
+    getDoc(doc(db, "profiles", uid)),
+    getDoc(doc(db, "assinaturas", uid)).catch(() => null),
+    getDocs(query(collection(db, "comentarios"), where("author_uid", "==", uid))),
+  ])
+  const profile = profileSnap.data() ?? {}
+  const identity = {
+    author_name: (profile.name as string) || "Leitor",
+    author_photo: (profile.photo_url as string) ?? "",
+    author_subscriber: subscriptionSnap?.data()?.status === "ativa",
+  }
+  const outdated = mine.docs.filter((d) => {
+    const data = d.data()
+    return (
+      data.author_name !== identity.author_name ||
+      (data.author_photo ?? "") !== identity.author_photo ||
+      (data.author_subscriber === true) !== identity.author_subscriber
+    )
+  })
+  // Lotes de até 400 escritas (o limite do Firestore é 500).
+  for (let i = 0; i < outdated.length; i += 400) {
+    const batch = writeBatch(db)
+    for (const d of outdated.slice(i, i + 400)) batch.update(d.ref, identity)
+    await batch.commit()
   }
 }
 

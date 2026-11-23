@@ -27,6 +27,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/features/authentication/auth-context"
+import { syncMyComments } from "@/features/comments/data"
 import { useAsync } from "@/hooks/use-async"
 import { formatDate, formatDateTime } from "@/lib/utils/format"
 
@@ -181,6 +182,7 @@ export function SubscriptionPanel() {
       if (result.ok) {
         toast.success(result.message)
         forgetExclusiveAccess(user.id)
+        syncMyComments(user.id).catch(() => {})
         reload()
       } else {
         toast.error(result.message)

@@ -179,6 +179,15 @@ describe("ataques que precisam ser recusados", () => {
       payment_notice_at: serverTimestamp(), payment_notice_note: "", updated_at: serverTimestamp(),
     })))
 
+  test("leitor troca o nome no comentário de outra pessoa", () =>
+    assertFails(updateDoc(doc(db("bob"), "comentarios", "c1"), { author_name: "Bob" })))
+
+  test("leitor põe no comentário um nome diferente do perfil", () =>
+    assertFails(updateDoc(doc(db("alice"), "comentarios", "c1"), { author_name: "Redação do Jornal" })))
+
+  test("leitor muda o texto junto com o nome do comentário", () =>
+    assertFails(updateDoc(doc(db("alice"), "comentarios", "c1"), { author_name: "Alice", text: "editado" })))
+
   test("leitor troca a chave Pix do jornal", () =>
     assertFails(setDoc(doc(db("alice"), "config", "pagamento"), {
       enabled: { direto: true }, direct_pix_key: "minha-chave", direct_pix_name: "", direct_contact: "", direct_instructions: "",
@@ -286,6 +295,13 @@ describe("usos normais que precisam funcionar", () => {
 
   test("assinante lê as próprias faturas", () =>
     assertSucceeds(getDocs(query(collection(db("alice"), "faturas"), where("uid", "==", "alice")))))
+
+  test("leitor troca o nome no perfil e atualiza os comentários antigos", async () => {
+    await assertSucceeds(updateDoc(doc(db("alice"), "profiles", "alice"), { name: "Alice Souza" }))
+    await assertSucceeds(updateDoc(doc(db("alice"), "comentarios", "c1"), {
+      author_name: "Alice Souza", author_photo: "", author_subscriber: true,
+    }))
+  })
 
   test("assinante avisa que pagou direto ao jornal", () =>
     assertSucceeds(updateDoc(doc(db("alice"), "faturas", "alice_2026-12"), {

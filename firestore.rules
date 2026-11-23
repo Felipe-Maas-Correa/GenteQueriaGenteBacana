@@ -288,6 +288,15 @@ service cloud.firestore {
         && request.resource.data.text == '';
     }
 
+    // Atualizar nome, foto e selo nos próprios comentários (depois de mudar o
+    // perfil): só esses campos, e sempre iguais ao perfil/assinatura atuais.
+    function isOwnIdentitySync() {
+      return resource.data.author_uid == request.auth.uid
+        && onlyChanged(['author_name', 'author_photo', 'author_subscriber'])
+        && isOwnIdentity(request.resource.data)
+        && request.resource.data.author_subscriber == isActiveSubscriber();
+    }
+
     match /comentarios/{id} {
       allow read: if true;
       allow create: if signedIn() && !isDisabled()
@@ -308,7 +317,7 @@ service cloud.firestore {
                     && (request.resource.data.parent_id == null
                         || (request.resource.data.parent_id is string
                             && isValidParent(request.resource.data.parent_id, request.resource.data.article_id)));
-      allow update: if signedIn() && !isDisabled() && (isOwnLikeToggle() || isSoftDelete());
+      allow update: if signedIn() && !isDisabled() && (isOwnLikeToggle() || isSoftDelete() || isOwnIdentitySync());
       allow delete: if isStaff();
     }
 

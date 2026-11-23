@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useRef, useState, useTransition } from "react"
+import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { HeartIcon, MessageCircleIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -19,6 +19,7 @@ import {
   deleteComment,
   listComments,
   MAX_COMMENT_LENGTH,
+  syncMyComments,
   timeAgo,
   toggleLike,
   type Author,
@@ -148,15 +149,20 @@ function CommentRow({
         className={compact ? "size-7 text-[0.625rem]" : undefined}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sm leading-relaxed break-words">
-          <span className="mr-1.5 inline-flex items-center gap-1 font-semibold">
+        <p className="flex flex-wrap items-center gap-x-1.5 text-sm leading-tight">
+          <span className="inline-flex items-center gap-1 font-semibold">
             {comment.author_name}
             {comment.author_subscriber ? <SubscriberBadge /> : null}
           </span>
-          <span className="whitespace-pre-line">{comment.text}</span>
+          <span aria-hidden className="text-muted-foreground">·</span>
+          <time dateTime={comment.created_at} className="text-xs text-muted-foreground">
+            {timeAgo(comment.created_at, now)}
+          </time>
         </p>
-        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <time dateTime={comment.created_at}>{timeAgo(comment.created_at, now)}</time>
+        <p className="mt-1 text-[0.9375rem] leading-relaxed break-words whitespace-pre-line text-foreground/90">
+          {comment.text}
+        </p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {likes > 0 ? (
             <span>
               {likes} {likes === 1 ? "curtida" : "curtidas"}
@@ -423,6 +429,25 @@ export function CommentsSection({ articleId, articleSlug }: { articleId: string;
       }
     : null
 
+  // Comentários antigos com nome/foto/selo desatualizados (o perfil mudou
+  // depois): na tela já aparecem certos e o banco é corrigido em seguida.
+  const identityKnown = Boolean(author) && !subscription.loading
+  const isStale = (c: Comment) =>
+    author !== null &&
+    c.author_uid === author.uid &&
+    (c.author_name !== author.name ||
+      c.author_photo !== author.photo ||
+      c.author_subscriber !== author.subscriber)
+  const stale = identityKnown && (comments.data ?? []).some(isStale)
+  const list = (comments.data ?? []).map((c) =>
+    identityKnown && author && isStale(c)
+      ? { ...c, author_name: author.name, author_photo: author.photo, author_subscriber: author.subscriber }
+      : c
+  )
+  useEffect(() => {
+    if (stale && user) syncMyComments(user.id).catch(() => {})
+  }, [stale, user])
+
   return (
     <section aria-labelledby="comentarios" className="border-t py-12 sm:py-16">
       <div className="page-container">
@@ -445,7 +470,7 @@ export function CommentsSection({ articleId, articleSlug }: { articleId: string;
           ) : (
             <Thread
               key={`${comments.data?.length ?? 0}-${author?.subscriber ?? "anon"}`}
-              initial={comments.data ?? []}
+              initial={list}
               articleId={articleId}
               author={author}
               loginHref={loginHref}
