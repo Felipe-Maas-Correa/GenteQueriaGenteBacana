@@ -17,17 +17,40 @@ import { uploadImage } from "@/lib/images/upload"
 import { articleSchema, type ArticleInput } from "@/lib/validations/article"
 import type { CardSize } from "@/types/database"
 
-/** Prévia aberta das notícias "parcialmente abertas": os 3 primeiros blocos. */
-const PREVIEW_BLOCKS = 3
+/** Prévia aberta das notícias "parcialmente abertas": ~20% do texto. */
+const PREVIEW_SHARE = 0.2
+/** Mínimo de letras na prévia (textos curtos ainda mostram uma frase). */
+const PREVIEW_MIN_CHARS = 140
 
 export function previewOf(html: string): string {
   if (typeof DOMParser === "undefined") return ""
   const root = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html").body.firstElementChild
   if (!root) return ""
-  return Array.from(root.children)
-    .slice(0, PREVIEW_BLOCKS)
-    .map((element) => element.outerHTML)
-    .join("")
+  const blocks = Array.from(root.children)
+  const total = blocks.reduce((sum, el) => sum + (el.textContent ?? "").length, 0)
+  const limit = Math.max(Math.round(total * PREVIEW_SHARE), PREVIEW_MIN_CHARS)
+
+  const parts: string[] = []
+  let used = 0
+  for (const element of blocks) {
+    const length = (element.textContent ?? "").length
+    if (used + length <= limit) {
+      parts.push(element.outerHTML)
+      used += length
+      continue
+    }
+    // O bloco passa do limite: num parágrafo, corta na palavra e põe "…".
+    const room = limit - used
+    if (element.tagName === "P" && room > 20) {
+      const text = (element.textContent ?? "").slice(0, room).replace(/\s+\S*$/, "")
+      const p = element.ownerDocument.createElement("p")
+      p.textContent = `${text}…`
+      parts.push(p.outerHTML)
+    }
+    break
+  }
+  // Garante pelo menos o primeiro bloco.
+  return parts.join("") || (blocks[0]?.outerHTML ?? "")
 }
 
 function toFieldErrors(issues: { path: PropertyKey[]; message: string }[]) {
