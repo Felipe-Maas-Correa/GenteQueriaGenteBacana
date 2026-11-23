@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation"
 /**
  * Abre /noticias filtrada pela editoria SEM mudar o endereço (o dono prefere
  * a barra limpa). O filtro vai pela sessionStorage (ou por evento, se a
- * página já estiver aberta). slug vazio = todas as notícias.
+ * página já estiver aberta). slug vazio = capa (todas as notícias).
  */
 const PENDING_KEY = "gqgb:editoria-alvo"
 
@@ -89,18 +89,25 @@ export function EditoriaLink({
   const router = useRouter()
   const pathname = usePathname()
   const openSlug = useActiveEditoria()
-  const active = pathname === "/noticias" && (openSlug ?? "") === slug
+  // "Todas as notícias" (slug vazio) volta para a capa, com todas as notícias.
+  const home = slug === ""
+  const active = home ? pathname === "/" : pathname === "/noticias" && openSlug === slug
 
   return (
     <Link
       {...props}
-      href="/noticias"
+      href={home ? "/" : "/noticias"}
       className={className}
       aria-current={active ? "page" : undefined}
       onClick={(event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
         event.preventDefault()
         onNavigate?.()
+        if (home) {
+          if (pathname === "/") scrollToTop()
+          else router.push("/")
+          return
+        }
         if (pathname === "/noticias") {
           // Já na página: ela troca o filtro na hora.
           window.dispatchEvent(new CustomEvent(EDITORIA_EVENT, { detail: slug }))

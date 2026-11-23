@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { LockIcon } from "lucide-react"
 
@@ -16,6 +17,7 @@ import { ArticleVisual } from "./article-visual"
 import { ExclusiveSeal } from "./paywall"
 import { routes } from "@/lib/routes"
 
+import { zoomIntoArticle } from "../enter-animation"
 import { StoredImage } from "../image-source"
 
 export function articleHref(article: Pick<Article, "slug">) {
@@ -81,7 +83,7 @@ export function ArticleImage({
     return () => window.clearInterval(timer)
   }, [slides.length])
   return (
-    <div className={cn("relative overflow-hidden bg-muted", className)}>
+    <div data-card-image="" className={cn("relative overflow-hidden bg-muted", className)}>
       {slides.length > 1 ? (
         // Capa em carrossel: as fotos se alternam sozinhas no cartão.
         slides.map((src, index) => (
@@ -150,6 +152,7 @@ export function ArticleCard({
   const hero = size === "hero"
   const withImage = showImage
   const { user } = useAuth()
+  const router = useRouter()
   const canRead = useCanReadExclusive()
   // Exclusiva e o leitor não assina: ao passar o mouse, o cartão se borra
   // e aparece o selo de conteúdo pago.
@@ -197,6 +200,13 @@ export function ArticleCard({
         >
           <Link
             href={href}
+            onClick={(event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+              const card = event.currentTarget.closest("article")
+              if (!card) return
+              event.preventDefault()
+              zoomIntoArticle(card, () => router.push(href))
+            }}
             className="rounded-sm outline-none transition-colors duration-(--duration-base) after:absolute after:inset-0 group-hover/card:text-brand focus-visible:ring-3 focus-visible:ring-ring/40"
           >
             {article.title}
