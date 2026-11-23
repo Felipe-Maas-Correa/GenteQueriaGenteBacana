@@ -552,5 +552,6 @@ export function ArticleReader({ slug }: { slug: string }) {
 /** Lê ?slug= da URL (página /noticia). */
 export function ArticleReaderFromQuery() {
   const slug = useSearchParams().get("slug") ?? ""
-  return <ArticleReader slug={slug} />
+  // key: trocar de notícia remonta a página (as animações de entrada rodam de novo).
+  return <ArticleReader key={slug} slug={slug} />
 }
