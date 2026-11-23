@@ -78,7 +78,9 @@ export function PaywallCard({ partial }: { partial: boolean }) {
   return (
     <div className="w-full max-w-xl rounded-xl bg-contraste p-6 text-center text-contraste-foreground shadow-2xl ring-1 ring-white/10 sm:p-10 dark:bg-[oklch(0.2_0_0)]">
       <LockIcon className="mx-auto size-7 text-[color:var(--amarelo)]" aria-hidden />
-      <p className="type-overline mt-3 text-[color:var(--amarelo)]">Exclusivo para assinantes</p>
+      <p className="type-overline mt-3 text-[color:var(--amarelo)]">
+        {partial ? "Fim da prévia" : "Exclusivo para assinantes"}
+      </p>
       <h2 className="type-h3 mx-auto mt-2 max-w-md text-balance">
         {partial ? "Continue lendo esta reportagem" : "Esta reportagem é só para assinantes"}
       </h2>
@@ -142,7 +144,7 @@ export function ExclusiveSeal({ partial = false, className }: { partial?: boolea
       )}
     >
       <LockIcon className="size-4 text-[color:var(--amarelo)]" aria-hidden />
-      {partial ? "Começo grátis · resto para assinantes" : "Exclusivo para assinantes"}
+      {partial ? "Prévia · leia o começo grátis" : "Exclusivo para assinantes"}
     </span>
   )
 }

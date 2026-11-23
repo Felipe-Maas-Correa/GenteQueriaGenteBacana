@@ -52,7 +52,7 @@ export function ArticleMeta({
       {article.access && article.access !== "public" ? (
         <span className="type-overline inline-flex items-center gap-1 text-muted-foreground">
           <LockIcon className="size-3" aria-hidden />
-          Assinantes
+          {article.access === "partial" ? "Prévia" : "Assinantes"}
         </span>
       ) : null}
     </p>
