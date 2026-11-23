@@ -31,6 +31,7 @@ import {
 } from "../queries"
 import { ArticleCard, ArticleImage, ArticleMeta, HomeGrid } from "./article-card"
 import { leaveArticle } from "../enter-animation"
+import { markArticleRead } from "../read-history"
 import { ExclusiveSeal, LockedArticleBody } from "./paywall"
 
 function NoNews({ message }: { message: string }) {
@@ -487,6 +488,10 @@ export function ArticleReader({ slug }: { slug: string }) {
     () => getPublishedArticle(slug),
     [slug]
   )
+  const openedId = data?.article?.id
+  useEffect(() => {
+    if (openedId) markArticleRead(openedId)
+  }, [openedId])
 
   if (loading && !data) {
     return (

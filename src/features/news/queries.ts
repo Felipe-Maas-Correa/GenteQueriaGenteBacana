@@ -1,3 +1,4 @@
+import { preferUnread } from "./read-history"
 import {
   collection,
   doc,
@@ -146,6 +147,7 @@ export async function getPublishedArticle(
   const others = await publishedQuery().catch(() => [])
   return {
     article,
-    related: others.filter((a) => a.id !== article.id).slice(0, 3),
+    // Prefere notícias que a pessoa ainda não abriu neste navegador.
+    related: preferUnread(others.filter((a) => a.id !== article.id)).slice(0, 3),
   }
 }
