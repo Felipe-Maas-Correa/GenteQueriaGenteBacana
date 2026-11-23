@@ -9,6 +9,7 @@ import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 import type { Article, CardSize } from "@/types/database"
 
+import { useAuth } from "@/features/authentication/auth-context"
 import { useCanReadExclusive } from "@/features/billing/use-exclusive-access"
 
 import { ArticleVisual } from "./article-visual"
@@ -148,10 +149,19 @@ export function ArticleCard({
 }: ArticleCardProps) {
   const hero = size === "hero"
   const withImage = showImage
+  const { user } = useAuth()
   const canRead = useCanReadExclusive()
   // Exclusiva e o leitor não assina: ao passar o mouse, o cartão se borra
   // e aparece o selo de conteúdo pago.
-  const locked = Boolean(article.access && article.access !== "public") && !canRead
+  const locked = Boolean(article.access && article.access !== "public") && canRead !== true
+  // Só para assinantes: quem não pode ler vai direto para o login (e volta
+  // para a notícia depois) ou, já logado, para a tela de assinatura.
+  const href =
+    article.access === "subscribers" && canRead === false
+      ? user
+        ? "/minha-conta?aba=assinatura"
+        : `/login?next=${encodeURIComponent(articleHref(article))}`
+      : articleHref(article)
 
   return (
     <article
@@ -186,7 +196,7 @@ export function ArticleCard({
           )}
         >
           <Link
-            href={articleHref(article)}
+            href={href}
             className="rounded-sm outline-none transition-colors duration-(--duration-base) after:absolute after:inset-0 group-hover/card:text-brand focus-visible:ring-3 focus-visible:ring-ring/40"
           >
             {article.title}

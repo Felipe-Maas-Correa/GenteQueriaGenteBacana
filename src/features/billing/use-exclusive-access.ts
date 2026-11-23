@@ -27,15 +27,16 @@ export function forgetExclusiveAccess(uid?: string) {
 
 /**
  * A conta logada pode ler notícias exclusivas? (assinante ativo ou equipe).
- * Serve só para a aparência: quem libera o texto de verdade são as regras
- * do banco.
+ * null = ainda conferindo. Serve só para a aparência e os links: quem libera
+ * o texto de verdade são as regras do banco.
  */
-export function useCanReadExclusive(): boolean {
-  const { user } = useAuth()
+export function useCanReadExclusive(): boolean | null {
+  const { status, user } = useAuth()
   const staff = isStaff(user?.role)
-  const { data } = useAsync(
+  const { data, loading } = useAsync(
     () => (!user || staff ? Promise.resolve(staff) : hasActiveSubscription(user.id)),
     [user?.id, staff]
   )
+  if (status === "loading" || (user && loading)) return null
   return data === true
 }

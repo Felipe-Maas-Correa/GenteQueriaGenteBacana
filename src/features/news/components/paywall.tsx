@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
 import { LockIcon } from "lucide-react"
 
@@ -73,6 +74,7 @@ function CensoredText({ className }: { className?: string }) {
 /** Aviso "exclusivo para assinantes", com os botões para assinar ou entrar. */
 export function PaywallCard({ partial }: { partial: boolean }) {
   const { user } = useAuth()
+  const router = useRouter()
   return (
     <div className="w-full max-w-xl rounded-xl bg-contraste p-6 text-center text-contraste-foreground shadow-2xl ring-1 ring-white/10 sm:p-10 dark:bg-[oklch(0.2_0_0)]">
       <LockIcon className="mx-auto size-7 text-[color:var(--amarelo)]" aria-hidden />
@@ -93,7 +95,16 @@ export function PaywallCard({ partial }: { partial: boolean }) {
             variant="outline"
             className="border-contraste-foreground/30 bg-transparent text-contraste-foreground hover:bg-white/10"
           >
-            <Link href="/login">Já sou assinante — entrar</Link>
+            <Link
+              href="/login"
+              onClick={(event) => {
+                // Depois de entrar, volta para esta notícia.
+                event.preventDefault()
+                router.push(`/login?next=${encodeURIComponent(location.pathname + location.search)}`)
+              }}
+            >
+              Já sou assinante — entrar
+            </Link>
           </Button>
         )}
       </div>
