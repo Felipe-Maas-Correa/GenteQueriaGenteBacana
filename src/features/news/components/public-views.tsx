@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, LockIcon, NewspaperIcon, SearchXIcon } from "lucide-react"
+import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, NewspaperIcon, SearchXIcon } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
 import { Reveal, RevealGroup, RevealItem } from "@/components/shared/reveal"
@@ -30,6 +30,7 @@ import {
   listPublishedArticles,
 } from "../queries"
 import { ArticleCard, ArticleImage, ArticleMeta, HomeGrid } from "./article-card"
+import { ExclusiveSeal, LockedArticleBody } from "./paywall"
 
 function NoNews({ message }: { message: string }) {
   return (
@@ -341,48 +342,18 @@ function ArticleCover({ article }: { article: Article }) {
   )
 }
 
-/** Aviso no lugar do texto fechado. */
-function Paywall({ partial }: { partial: boolean }) {
-  const { user } = useAuth()
-  return (
-    <div className="relative mx-auto max-w-5xl">
-      {partial && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-32 inset-x-0 h-32 bg-gradient-to-b from-transparent to-background"
-        />
-      )}
-      <div className="rounded-xl bg-contraste p-6 text-center text-contraste-foreground sm:p-10 dark:bg-[oklch(0.2_0_0)]">
-        <LockIcon className="mx-auto size-7 text-[color:var(--amarelo)]" aria-hidden />
-        <p className="type-overline mt-3 text-[color:var(--amarelo)]">Exclusivo para assinantes</p>
-        <h2 className="type-h3 mx-auto mt-2 max-w-md text-balance">
-          {partial ? "Continue lendo esta reportagem" : "Esta reportagem é só para assinantes"}
-        </h2>
-        <p className="mx-auto mt-3 max-w-md text-sm text-contraste-foreground/80">
-          Assine o jornal para ler tudo, sem limites, e apoiar o jornalismo feito aqui.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Button asChild className="bg-[color:var(--amarelo)] text-black hover:bg-[color:var(--amarelo)]/90">
-            <Link href="/minha-conta?aba=assinatura">Quero assinar</Link>
-          </Button>
-          {!user && (
-            <Button asChild variant="outline" className="border-contraste-foreground/30 bg-transparent text-contraste-foreground hover:bg-white/10">
-              <Link href="/login">Já sou assinante — entrar</Link>
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
+type ArticleAccessState =
+  | { state: "open"; body: string }
+  | { state: "loading" }
+  | { state: "locked" }
 
 /**
- * Texto da notícia respeitando o acesso: aberta mostra tudo; restrita tenta
- * buscar o texto completo (as regras do banco só liberam para assinantes
- * ativos e equipe) e, se não puder, mostra a prévia + o aviso.
+ * O que o leitor pode ver: aberta mostra tudo; restrita tenta buscar o texto
+ * completo (as regras do banco só liberam para assinantes ativos e equipe)
+ * e, se não puder, fica fechada.
  */
-function ArticleContent({ article, fullBody }: { article: Article; fullBody?: string | null }) {
-  const { user } = useAuth()
+function useArticleAccess(article: Article, fullBody?: string | null): ArticleAccessState {
+  const { status, user } = useAuth()
   const restricted = article.access === "partial" || article.access === "subscribers"
   const { data, loading } = useAsync(
     () =>
@@ -392,9 +363,17 @@ function ArticleContent({ article, fullBody }: { article: Article; fullBody?: st
     [article.id, restricted, fullBody, user?.id]
   )
 
-  if (!restricted) return <ArticleBody body={article.body} />
-  if (typeof fullBody === "string") return <ArticleBody body={fullBody} />
-  if (loading && !data) {
+  if (!restricted) return { state: "open", body: article.body }
+  if (typeof fullBody === "string") return { state: "open", body: fullBody }
+  if (fullBody === null) return { state: "locked" }
+  if (data) return { state: "open", body: data }
+  if (status === "loading" || (user && loading)) return { state: "loading" }
+  return { state: "locked" }
+}
+
+function ArticleContent({ article, access }: { article: Article; access: ArticleAccessState }) {
+  if (access.state === "open") return <ArticleBody body={access.body} />
+  if (access.state === "loading") {
     return (
       <div className="mx-auto max-w-5xl space-y-4" aria-busy>
         <Skeleton className="h-5 w-full" />
@@ -402,11 +381,18 @@ function ArticleContent({ article, fullBody }: { article: Article; fullBody?: st
       </div>
     )
   }
-  if (data) return <ArticleBody body={data} />
+  const preview = article.access === "partial" && article.body ? <ArticleBody body={article.body} /> : undefined
+  return <LockedArticleBody preview={preview} />
+}
+
+/** Capa borrada da notícia só para assinantes, com o selo no meio. */
+function CensoredCover({ article }: { article: Article }) {
   return (
-    <div className="space-y-10">
-      {article.access === "partial" && article.body ? <ArticleBody body={article.body} /> : null}
-      <Paywall partial={article.access === "partial"} />
+    <div aria-hidden className="relative mx-auto max-w-5xl select-none overflow-hidden rounded-sm">
+      <ArticleImage article={article} className="aspect-[16/9]" imgClassName="scale-110 blur-2xl" />
+      <div className="absolute inset-0 grid place-items-center bg-background/20">
+        <ExclusiveSeal />
+      </div>
     </div>
   )
 }
@@ -426,6 +412,9 @@ export function ArticleView({
   preview?: boolean
 }) {
   const { label } = useEditorias()
+  const access = useArticleAccess(article, fullBody)
+  // Só para assinantes: enquanto não liberar, linha fina e fotos ficam borradas.
+  const censored = article.access === "subscribers" && access.state !== "open"
   return (
     <>
       <header className="page-container pt-8 sm:pt-12">
@@ -442,7 +431,13 @@ export function ArticleView({
           <ArticleMeta article={article} />
           <h1 className="type-h1 mt-4 text-balance">{article.title}</h1>
           {article.excerpt ? (
-            <p className="type-lead mt-5 max-w-3xl text-muted-foreground">
+            <p
+              aria-hidden={censored || undefined}
+              className={cn(
+                "type-lead mt-5 max-w-3xl text-muted-foreground transition-[filter] duration-500",
+                censored && "select-none blur-[6px]"
+              )}
+            >
               {article.excerpt}
             </p>
           ) : null}
@@ -461,8 +456,8 @@ export function ArticleView({
 
       {article.show_image || article.image_url ? (
         <figure className="page-container mt-8">
-          <ArticleCover article={article} />
-          {article.image_caption ? (
+          {censored ? <CensoredCover article={article} /> : <ArticleCover article={article} />}
+          {article.image_caption && !censored ? (
             <figcaption className="type-caption mx-auto mt-2 max-w-5xl text-muted-foreground">
               {article.image_caption}
             </figcaption>
@@ -471,7 +466,7 @@ export function ArticleView({
       ) : null}
 
       <div className="page-container py-12 sm:py-16">
-        <ArticleContent article={article} fullBody={fullBody} />
+        <ArticleContent article={article} access={access} />
       </div>
     </>
   )

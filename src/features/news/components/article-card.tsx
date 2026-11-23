@@ -9,7 +9,10 @@ import { useEditorias } from "@/features/editorias/editorias-context"
 import { cn } from "@/lib/utils"
 import type { Article, CardSize } from "@/types/database"
 
+import { useCanReadExclusive } from "@/features/billing/use-exclusive-access"
+
 import { ArticleVisual } from "./article-visual"
+import { ExclusiveSeal } from "./paywall"
 import { routes } from "@/lib/routes"
 
 import { StoredImage } from "../image-source"
@@ -145,6 +148,10 @@ export function ArticleCard({
 }: ArticleCardProps) {
   const hero = size === "hero"
   const withImage = showImage
+  const canRead = useCanReadExclusive()
+  // Exclusiva e o leitor não assina: ao passar o mouse, o cartão se borra
+  // e aparece o selo de conteúdo pago.
+  const locked = Boolean(article.access && article.access !== "public") && !canRead
 
   return (
     <article
@@ -196,6 +203,18 @@ export function ArticleCard({
           </p>
         ) : null}
       </div>
+
+      {locked ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-[-0.5rem] z-10 grid place-items-center rounded-md bg-background/30 opacity-0 backdrop-blur-md transition-opacity duration-(--duration-base) group-hover/card:opacity-100 group-focus-within/card:opacity-100"
+        >
+          <ExclusiveSeal
+            partial={article.access === "partial"}
+            className="translate-y-1 transition-transform duration-(--duration-base) group-hover/card:translate-y-0"
+          />
+        </div>
+      ) : null}
     </article>
   )
 }

@@ -40,6 +40,7 @@ import {
   priceFor,
   subscribe,
 } from "../data"
+import { forgetExclusiveAccess } from "../use-exclusive-access"
 
 const DAYS = Array.from({ length: 28 }, (_, index) => index + 1)
 
@@ -179,6 +180,7 @@ export function SubscriptionPanel() {
       })
       if (result.ok) {
         toast.success(result.message)
+        forgetExclusiveAccess(user.id)
         reload()
       } else {
         toast.error(result.message)
