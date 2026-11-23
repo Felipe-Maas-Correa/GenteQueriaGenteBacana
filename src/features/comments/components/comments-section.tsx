@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { HeartIcon, MessageCircleIcon } from "lucide-react"
+import { AnimatePresence, motion } from "motion/react"
 import { toast } from "sonner"
 
 import { SubscriberBadge } from "@/components/shared/subscriber-badge"
@@ -193,13 +194,22 @@ function CommentRow({
         aria-label={liked ? "Descurtir" : "Curtir"}
         className="grid size-8 shrink-0 place-items-center self-start rounded-full outline-none transition-transform active:scale-90 focus-visible:ring-3 focus-visible:ring-ring/40"
       >
-        <HeartIcon
-          className={cn(
-            "size-4 transition-colors",
-            liked ? "fill-[color:var(--vermelho)] text-[color:var(--vermelho)]" : "text-muted-foreground hover:text-foreground"
-          )}
-          aria-hidden
-        />
+        {/* Ao curtir, o coração "pula". */}
+        <motion.span
+          key={liked ? "on" : "off"}
+          initial={{ scale: liked ? 0.4 : 1 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 520, damping: 11 }}
+          className="grid place-items-center"
+        >
+          <HeartIcon
+            className={cn(
+              "size-4 transition-colors",
+              liked ? "fill-[color:var(--vermelho)] text-[color:var(--vermelho)]" : "text-muted-foreground hover:text-foreground"
+            )}
+            aria-hidden
+          />
+        </motion.span>
       </button>
     </div>
   )
@@ -329,11 +339,20 @@ function Thread({
         <p className="text-sm text-muted-foreground">Seja o primeiro a comentar.</p>
       ) : (
         <ul className="space-y-6">
+          <AnimatePresence initial={false}>
           {roots.slice(0, visible).map((root) => {
             const list = replies.get(root.id) ?? []
             const isOpen = open.has(root.id)
             return (
-              <li key={root.id} className="space-y-3">
+              <motion.li
+                key={root.id}
+                layout="position"
+                initial={{ opacity: 0, y: -12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
+                className="space-y-3"
+              >
                 <CommentRow
                   comment={root}
                   meId={meId}
@@ -364,23 +383,49 @@ function Thread({
                       </button>
                     ) : null}
 
-                    {isOpen
-                      ? list.map((reply) => (
-                          <CommentRow
-                            key={reply.id}
-                            comment={reply}
-                            meId={meId}
-                            canModerate={canModerate}
-                            compact
-                            onLike={like}
-                            onReply={startReply}
-                            onDelete={remove}
-                            now={now}
-                          />
-                        ))
-                      : null}
+                    <AnimatePresence initial={false}>
+                      {isOpen ? (
+                        <motion.div
+                          key="respostas"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
+                          className="space-y-3 overflow-hidden"
+                        >
+                          {list.map((reply) => (
+                            <motion.div
+                              key={reply.id}
+                              initial={{ opacity: 0, x: -8 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <CommentRow
+                                comment={reply}
+                                meId={meId}
+                                canModerate={canModerate}
+                                compact
+                                onLike={like}
+                                onReply={startReply}
+                                onDelete={remove}
+                                now={now}
+                              />
+                            </motion.div>
+                          ))}
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
 
+                    <AnimatePresence initial={false}>
                     {author && replyTo?.rootId === root.id ? (
+                      <motion.div
+                        key="responder"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="overflow-hidden"
+                      >
                       <Composer
                         key={replyTo.mention}
                         author={author}
@@ -391,12 +436,15 @@ function Thread({
                         onSubmit={(text) => publish(text, root.id)}
                         onCancel={() => setReplyTo(null)}
                       />
+                      </motion.div>
                     ) : null}
+                    </AnimatePresence>
                   </div>
                 ) : null}
-              </li>
+              </motion.li>
             )
           })}
+          </AnimatePresence>
         </ul>
       )}
 

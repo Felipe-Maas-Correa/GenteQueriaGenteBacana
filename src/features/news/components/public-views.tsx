@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeftIcon, ChevronLeftIcon, ChevronRightIcon, NewspaperIcon, SearchXIcon } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
@@ -30,6 +30,7 @@ import {
   listPublishedArticles,
 } from "../queries"
 import { ArticleCard, ArticleImage, ArticleMeta, HomeGrid } from "./article-card"
+import { leaveArticle } from "../enter-animation"
 import { ExclusiveSeal, LockedArticleBody } from "./paywall"
 
 function NoNews({ message }: { message: string }) {
@@ -412,6 +413,7 @@ export function ArticleView({
   preview?: boolean
 }) {
   const { label } = useEditorias()
+  const router = useRouter()
   const access = useArticleAccess(article, fullBody)
   // Só para assinantes: enquanto não liberar, linha fina e fotos ficam borradas.
   const censored = article.access === "subscribers" && access.state !== "open"
@@ -421,9 +423,17 @@ export function ArticleView({
         {!preview && (
           <Link
             href="/"
-            className="type-small inline-flex items-center gap-1.5 rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40"
+            onClick={(event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+              event.preventDefault()
+              leaveArticle(() => router.push("/"))
+            }}
+            className="group/voltar type-small inline-flex items-center gap-1.5 rounded-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40"
           >
-            <ArrowLeftIcon className="size-4" aria-hidden />
+            <ArrowLeftIcon
+              className="size-4 transition-transform duration-300 group-hover/voltar:-translate-x-1"
+              aria-hidden
+            />
             Voltar para a capa
           </Link>
         )}

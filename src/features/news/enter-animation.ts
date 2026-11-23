@@ -56,3 +56,26 @@ export function zoomIntoArticle(card: HTMLElement, navigate: () => void) {
     }, 150)
   }, DURATION)
 }
+
+/**
+ * Animação de "sair da notícia": a página encolhe e some antes de voltar
+ * para a capa, que entra com o fade normal das páginas.
+ */
+export function leaveArticle(navigate: () => void) {
+  const main = document.getElementById("conteudo")
+  if (!main || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    navigate()
+    return
+  }
+  const exit = main.animate(
+    [
+      { opacity: 1, transform: "scale(1) translateY(0)" },
+      { opacity: 0, transform: "scale(0.96) translateY(16px)" },
+    ],
+    { duration: 280, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" }
+  )
+  window.setTimeout(() => {
+    navigate()
+    window.setTimeout(() => exit.cancel(), 60)
+  }, 280)
+}
