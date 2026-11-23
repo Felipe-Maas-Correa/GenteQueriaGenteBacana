@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 
 import { PageHeader } from "@/components/shared/page-header"
 import { AccountSettings } from "@/features/authentication/components/account-settings"
@@ -17,7 +18,9 @@ export default function AccountPage() {
         title="Minha conta"
         description="Seus dados e suas preferências pessoais."
       />
-      <AccountSettings />
+      <Suspense>
+        <AccountSettings />
+      </Suspense>
     </div>
   )
 }

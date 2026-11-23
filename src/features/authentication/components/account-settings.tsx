@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState, useTransition } from "react"
+import { useSearchParams } from "next/navigation"
 import { updateProfile as updateAuthProfile } from "firebase/auth"
 import { CameraIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -181,10 +182,9 @@ function ProfileCard() {
 export function AccountSettings() {
   const { status } = useAuth()
   // /minha-conta?aba=assinatura abre direto na aba (ex.: vindo de notícia exclusiva).
-  const [tab, setTab] = useState(() => {
-    const aba = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("aba")
-    return aba === "assinatura" || aba === "faturas" ? aba : "perfil"
-  })
+  // useSearchParams (com <Suspense> na página) evita divergência de hidratação.
+  const aba = useSearchParams().get("aba")
+  const [tab, setTab] = useState(aba === "assinatura" || aba === "faturas" ? aba : "perfil")
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="gap-6">

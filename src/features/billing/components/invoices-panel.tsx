@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { ReceiptIcon } from "lucide-react"
 
 import { EmptyState } from "@/components/shared/empty-state"
@@ -17,9 +18,11 @@ import {
 } from "@/components/ui/table"
 import { useAuth } from "@/features/authentication/auth-context"
 import { useAsync } from "@/hooks/use-async"
+import { routes } from "@/lib/routes"
 import { formatDate, formatDateTime } from "@/lib/utils/format"
 
 import { formatCents, formatMonth, listMyInvoices, type InvoiceStatus } from "../data"
+import { paymentMethodLabel } from "../payment-methods"
 
 export function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
   if (status === "paga") return <Badge variant="success">Paga</Badge>
@@ -75,7 +78,9 @@ export function InvoicesPanel() {
                 </TableCell>
                 <TableCell className="text-right text-sm text-muted-foreground">
                   {invoice.status === "paga" ? (
-                    `Pago em ${formatDateTime(invoice.paid_at) || "—"}`
+                    `Pago em ${formatDateTime(invoice.paid_at) || "—"}${
+                      invoice.payment_method ? ` · ${paymentMethodLabel(invoice.payment_method)}` : ""
+                    }`
                   ) : invoice.status === "aberta" && invoice.payment_url ? (
                     <Button asChild size="sm" variant="accent">
                       <a href={invoice.payment_url} target="_blank" rel="noopener noreferrer">
@@ -83,8 +88,10 @@ export function InvoicesPanel() {
                       </a>
                     </Button>
                   ) : invoice.status === "aberta" ? (
-                    <Button size="sm" variant="outline" disabled title="Em breve: Pix e cartão pelo site">
-                      Pagar (em breve)
+                    <Button asChild size="sm" variant={invoice.payment_notice_at ? "outline" : "accent"}>
+                      <Link href={routes.payment(invoice.id)}>
+                        {invoice.payment_notice_at ? "Aguardando confirmação" : "Pagar"}
+                      </Link>
                     </Button>
                   ) : (
                     "—"
@@ -96,8 +103,8 @@ export function InvoicesPanel() {
         </Table>
       </div>
       <p className="type-caption text-muted-foreground">
-        Enquanto o pagamento pelo site não está disponível, combine com a equipe do jornal;
-        a fatura é marcada como paga por eles.
+        Em &quot;Pagar&quot; você escolhe a forma de pagamento. Se pagar direto ao jornal, a
+        equipe confirma e a fatura fica paga.
       </p>
     </div>
   )

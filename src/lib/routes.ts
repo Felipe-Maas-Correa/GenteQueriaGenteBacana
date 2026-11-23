@@ -9,5 +9,6 @@
 export const routes = {
   article: (slug: string) => `/noticia?slug=${encodeURIComponent(slug)}`,
   editArticle: (id: string) => `/admin/noticias/editar?id=${encodeURIComponent(id)}`,
+  payment: (invoiceId: string) => `/pagamento?fatura=${encodeURIComponent(invoiceId)}`,
   editSubscriber: (id: string) => `/admin/assinantes/editar?id=${encodeURIComponent(id)}`,
 }

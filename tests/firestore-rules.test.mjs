@@ -169,6 +169,21 @@ describe("ataques que precisam ser recusados", () => {
   test("leitor marca a própria fatura como paga", () =>
     assertFails(updateDoc(doc(db("alice"), "faturas", "alice_2026-12"), { status: "paga" })))
 
+  test("leitor avisa pagamento direto e marca a fatura como paga junto", () =>
+    assertFails(updateDoc(doc(db("alice"), "faturas", "alice_2026-12"), {
+      payment_notice_at: serverTimestamp(), payment_notice_note: "", status: "paga", updated_at: serverTimestamp(),
+    })))
+
+  test("leitor avisa pagamento direto na fatura de outra pessoa", () =>
+    assertFails(updateDoc(doc(db("bob"), "faturas", "alice_2026-12"), {
+      payment_notice_at: serverTimestamp(), payment_notice_note: "", updated_at: serverTimestamp(),
+    })))
+
+  test("leitor troca a chave Pix do jornal", () =>
+    assertFails(setDoc(doc(db("alice"), "config", "pagamento"), {
+      enabled: { direto: true }, direct_pix_key: "minha-chave", direct_pix_name: "", direct_contact: "", direct_instructions: "",
+    })))
+
   test("comentário se passando por outra pessoa (nome falso)", () =>
     assertFails(addDoc(collection(db("bob"), "comentarios"), comment("bob", { author_name: "Redação do Jornal" }))))
 
@@ -271,6 +286,21 @@ describe("usos normais que precisam funcionar", () => {
 
   test("assinante lê as próprias faturas", () =>
     assertSucceeds(getDocs(query(collection(db("alice"), "faturas"), where("uid", "==", "alice")))))
+
+  test("assinante avisa que pagou direto ao jornal", () =>
+    assertSucceeds(updateDoc(doc(db("alice"), "faturas", "alice_2026-12"), {
+      payment_notice_at: serverTimestamp(), payment_notice_note: "Paguei em dinheiro", updated_at: serverTimestamp(),
+    })))
+
+  test("admin dá baixa manual e configura as formas de pagamento", async () => {
+    await assertSucceeds(updateDoc(doc(db("admin"), "faturas", "alice_2026-12"), {
+      status: "paga", paid_at: serverTimestamp(), payment_provider: "manual", payment_method: "dinheiro",
+    }))
+    await assertSucceeds(setDoc(doc(db("admin"), "config", "pagamento"), {
+      enabled: { pix: true, direto: true }, direct_pix_key: "jornal@exemplo.test", direct_pix_name: "Jornal",
+      direct_contact: "(55) 99999-0000", direct_instructions: "", updated_at: serverTimestamp(),
+    }))
+  })
 
   test("admin lê assinaturas e gera fatura", async () => {
     await assertSucceeds(getDoc(doc(db("admin"), "assinaturas", "alice")))

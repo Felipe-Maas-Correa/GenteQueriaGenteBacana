@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   query,
+  Timestamp,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -23,9 +24,10 @@ import { actionError, type ActionResult } from "@/lib/utils/action-result"
  * - assinaturas/{uid}   → uma por leitor (id = uid do Auth).
  * - faturas/{uid_AAAA-MM} → uma por assinante e mês (id fixo evita duplicar).
  *
- * Valores sempre em centavos (inteiros). Ainda não há meio de pagamento: os
- * campos `payment_*` ficam reservados para a futura integração (Pix, cartão…),
- * que vai marcar a fatura como paga pelo próprio provedor.
+ * Valores sempre em centavos (inteiros). Formas de pagamento: ver
+ * payment-methods.ts. Hoje a baixa é manual (pagamento direto ao jornal,
+ * registrado por um administrador); a futura integração online (Pix, cartão,
+ * boleto) vai preencher `payment_provider`/`payment_id` pelo servidor.
  */
 
 export type SubscriptionStatus = "pendente" | "ativa" | "cancelada"
@@ -73,6 +75,14 @@ export type Invoice = {
   payment_provider: string
   payment_id: string
   payment_url: string
+  /** Forma usada no pagamento (online ou registrada pela equipe). */
+  payment_method: string
+  /** Observação da baixa manual e quem a fez. */
+  paid_note: string
+  paid_by_name: string
+  /** O leitor avisou que pagou (ou vai pagar) direto ao jornal. */
+  payment_notice_at: string
+  payment_notice_note: string
   created_at: string
 }
 
@@ -282,6 +292,11 @@ function mapInvoice(id: string, data: Record<string, unknown>): Invoice {
     payment_provider: (data.payment_provider as string) ?? "",
     payment_id: (data.payment_id as string) ?? "",
     payment_url: (data.payment_url as string) ?? "",
+    payment_method: (data.payment_method as string) ?? "",
+    paid_note: (data.paid_note as string) ?? "",
+    paid_by_name: (data.paid_by_name as string) ?? "",
+    payment_notice_at: tsToISO(data.payment_notice_at),
+    payment_notice_note: (data.payment_notice_note as string) ?? "",
     created_at: tsToISO(data.created_at),
   }
 }
@@ -292,6 +307,12 @@ export async function listMyInvoices(uid: string): Promise<Invoice[]> {
   return snapshot.docs
     .map((d) => mapInvoice(d.id, d.data()))
     .sort((a, b) => b.reference_month.localeCompare(a.reference_month))
+}
+
+/** Uma fatura (as regras só deixam o dono ou um administrador ler). */
+export async function getInvoice(id: string): Promise<Invoice | null> {
+  const snapshot = await getDoc(doc(getDb(), "faturas", id))
+  return snapshot.exists() ? mapInvoice(snapshot.id, snapshot.data()) : null
 }
 
 export async function listInvoicesByMonth(month: string): Promise<Invoice[]> {
@@ -372,20 +393,84 @@ export async function generateInvoices(month: string): Promise<ActionResult<{ cr
   }
 }
 
-/** Equipe: baixa manual (até existir integração de pagamento). */
-export async function setInvoiceStatus(id: string, status: InvoiceStatus): Promise<ActionResult> {
+/** Campos de pagamento zerados (fatura volta a ficar em aberto). */
+const CLEARED_PAYMENT = {
+  paid_at: null,
+  payment_method: "",
+  paid_note: "",
+  paid_by: "",
+  paid_by_name: "",
+}
+
+/** Equipe: reabrir ou cancelar. Para dar baixa use `registerManualPayment`. */
+export async function setInvoiceStatus(
+  id: string,
+  status: Exclude<InvoiceStatus, "paga">
+): Promise<ActionResult> {
   try {
     await updateDoc(doc(getDb(), "faturas", id), {
       status,
-      paid_at: status === "paga" ? serverTimestamp() : null,
+      ...CLEARED_PAYMENT,
       updated_at: serverTimestamp(),
     })
-    const messages: Record<InvoiceStatus, string> = {
-      paga: "Fatura marcada como paga.",
-      aberta: "Fatura reaberta.",
-      cancelada: "Fatura cancelada.",
+    return { ok: true, message: status === "aberta" ? "Fatura reaberta." : "Fatura cancelada." }
+  } catch (error) {
+    return actionError(firestoreErrorMessage(error))
+  }
+}
+
+/**
+ * Administrador: baixa manual de um pagamento feito direto ao jornal
+ * (Pix na chave do dono, dinheiro, transferência, maquininha…).
+ */
+export async function registerManualPayment(input: {
+  id: string
+  method: string
+  /** Data em que o dinheiro foi recebido (AAAA-MM-DD). */
+  paid_on: string
+  note: string
+  admin: { uid: string; name: string }
+}): Promise<ActionResult> {
+  if (!input.method) return actionError("Escolha como o pagamento foi feito.")
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.paid_on)) return actionError("Informe a data do pagamento.")
+  const paidAt = new Date(`${input.paid_on}T12:00:00-03:00`)
+  if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + 86_400_000) {
+    return actionError("A data do pagamento não pode ser no futuro.")
+  }
+  if (input.note.length > 300) return actionError("Observação muito longa (até 300 caracteres).")
+  try {
+    await updateDoc(doc(getDb(), "faturas", input.id), {
+      status: "paga",
+      paid_at: Timestamp.fromDate(paidAt),
+      payment_provider: "manual",
+      payment_method: input.method,
+      paid_note: input.note.trim(),
+      paid_by: input.admin.uid,
+      paid_by_name: input.admin.name,
+      updated_at: serverTimestamp(),
+    })
+    return { ok: true, message: "Pagamento registrado. A fatura está paga." }
+  } catch (error) {
+    return actionError(firestoreErrorMessage(error))
+  }
+}
+
+/**
+ * Leitor: avisa que pagou (ou vai pagar) direto ao jornal. A fatura continua
+ * em aberto até um administrador confirmar o recebimento.
+ */
+export async function notifyDirectPayment(id: string, note: string): Promise<ActionResult> {
+  if (note.length > 300) return actionError("Mensagem muito longa (até 300 caracteres).")
+  try {
+    await updateDoc(doc(getDb(), "faturas", id), {
+      payment_notice_at: serverTimestamp(),
+      payment_notice_note: note.trim(),
+      updated_at: serverTimestamp(),
+    })
+    return {
+      ok: true,
+      message: "Pronto! Avisamos a equipe do jornal. A fatura fica paga assim que eles confirmarem.",
     }
-    return { ok: true, message: messages[status] }
   } catch (error) {
     return actionError(firestoreErrorMessage(error))
   }

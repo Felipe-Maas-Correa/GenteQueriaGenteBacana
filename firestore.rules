@@ -195,6 +195,19 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Formas de pagamento e dados do Pix do dono (para pagar direto ao jornal).
+    match /config/pagamento {
+      allow read: if signedIn();
+      allow write: if isAdmin()
+        && request.resource.data.keys().hasOnly(['enabled', 'direct_pix_key', 'direct_pix_name',
+                                                 'direct_contact', 'direct_instructions', 'updated_at'])
+        && request.resource.data.enabled is map
+        && isShortText(request.resource.data.direct_pix_key, 140)
+        && isShortText(request.resource.data.direct_pix_name, 120)
+        && isShortText(request.resource.data.direct_contact, 60)
+        && isShortText(request.resource.data.direct_instructions, 1000);
+    }
+
     match /assinaturas/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow create: if signedIn() && request.auth.uid == uid && !isDisabled()
@@ -214,11 +227,20 @@ service cloud.firestore {
     }
 
     // Faturas: cada um lê as suas (consulta filtrada por uid); só
-    // administradores geram e dão baixa. A futura integração de pagamento
-    // grava pelo servidor (Admin SDK), que não passa por estas regras.
+    // administradores geram e dão baixa (inclusive a manual, de pagamento
+    // feito direto ao jornal). A futura integração de pagamento online grava
+    // pelo servidor (Admin SDK), que não passa por estas regras.
+    // O dono só pode AVISAR que pagou direto: a fatura continua em aberto.
     match /faturas/{id} {
       allow read: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
-      allow create, update, delete: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        signedIn() && resource.data.uid == request.auth.uid && !isDisabled()
+        && resource.data.status == 'aberta'
+        && onlyChanged(['payment_notice_at', 'payment_notice_note', 'updated_at'])
+        && request.resource.data.payment_notice_at == request.time
+        && isShortText(request.resource.data.payment_notice_note, 300)
+      );
     }
 
     // ── Comentários ───────────────────────────────────────────────

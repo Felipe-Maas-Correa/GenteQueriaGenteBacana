@@ -5,6 +5,7 @@ import {
   BadgeDollarSignIcon,
   CheckIcon,
   FilePlus2Icon,
+  HandCoinsIcon,
   ReceiptIcon,
   ShieldAlertIcon,
   UsersIcon,
@@ -70,10 +71,14 @@ import {
   setInvoiceStatus,
   setSubscriptionStatus,
   type BillingConfig,
+  type Invoice,
   type Subscription,
   type SubscriptionStatus,
 } from "../data"
+import { paymentMethodLabel } from "../payment-methods"
 import { InvoiceStatusBadge } from "./invoices-panel"
+import { ManualPaymentDialog } from "./manual-payment-dialog"
+import { PaymentSettings } from "./payment-settings"
 
 function useRunner(onDone: () => void) {
   const [pending, start] = useTransition()
@@ -388,12 +393,17 @@ function InvoicesTab() {
   const [month, setMonth] = useState(currentMonth())
   const { data, loading, error, reload } = useAsync(() => listInvoicesByMonth(month), [month])
   const { pending, run } = useRunner(reload)
+  const [paying, setPaying] = useState<Invoice | null>(null)
 
   const totals = useMemo(() => {
     const list = data ?? []
     const sum = (status: string) =>
       list.filter((i) => i.status === status).reduce((acc, i) => acc + i.amount_cents, 0)
-    return { aberta: sum("aberta"), paga: sum("paga") }
+    return {
+      aberta: sum("aberta"),
+      paga: sum("paga"),
+      avisos: list.filter((i) => i.status === "aberta" && i.payment_notice_at).length,
+    }
   }, [data])
 
   return (
@@ -438,6 +448,11 @@ function InvoicesTab() {
             <p>
               Recebido: <strong className="text-success">{formatCents(totals.paga)}</strong>
             </p>
+            {totals.avisos ? (
+              <Badge variant="info">
+                {totals.avisos} {totals.avisos === 1 ? "aviso" : "avisos"} de pagamento direto para confirmar
+              </Badge>
+            ) : null}
           </div>
           <div className="overflow-hidden rounded-xl border bg-card">
             <Table>
@@ -461,35 +476,57 @@ function InvoicesTab() {
                     <TableCell className="hidden text-sm sm:table-cell">{formatDate(invoice.due_date)}</TableCell>
                     <TableCell>
                       <InvoiceStatusBadge status={invoice.status} />
+                      {invoice.status === "paga" ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {paymentMethodLabel(invoice.payment_method)} · {formatDate(invoice.paid_at)}
+                          {invoice.paid_by_name ? ` · por ${invoice.paid_by_name}` : ""}
+                        </p>
+                      ) : invoice.status === "aberta" && invoice.payment_notice_at ? (
+                        <p
+                          className="mt-1 text-xs text-info"
+                          title={invoice.payment_notice_note || undefined}
+                        >
+                          Avisou que pagou direto ({formatDateTime(invoice.payment_notice_at)})
+                        </p>
+                      ) : null}
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="outline" disabled={pending}>
-                            Ações
+                      <div className="flex justify-end gap-2">
+                        {invoice.status === "aberta" ? (
+                          <Button size="sm" disabled={pending} onClick={() => setPaying(invoice)}>
+                            <HandCoinsIcon aria-hidden />
+                            <span className="hidden md:inline">Registrar pagamento</span>
+                            <span className="md:hidden">Pago</span>
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {invoice.status !== "paga" ? (
-                            <DropdownMenuItem onSelect={() => run(() => setInvoiceStatus(invoice.id, "paga"))}>
-                              Marcar como paga
-                            </DropdownMenuItem>
-                          ) : null}
-                          {invoice.status !== "aberta" ? (
-                            <DropdownMenuItem onSelect={() => run(() => setInvoiceStatus(invoice.id, "aberta"))}>
-                              Reabrir
-                            </DropdownMenuItem>
-                          ) : null}
-                          {invoice.status !== "cancelada" ? (
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onSelect={() => run(() => setInvoiceStatus(invoice.id, "cancelada"))}
-                            >
-                              Cancelar fatura
-                            </DropdownMenuItem>
-                          ) : null}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        ) : null}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" disabled={pending}>
+                              Ações
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {invoice.status !== "paga" ? (
+                              <DropdownMenuItem onSelect={() => setPaying(invoice)}>
+                                Registrar pagamento…
+                              </DropdownMenuItem>
+                            ) : null}
+                            {invoice.status !== "aberta" ? (
+                              <DropdownMenuItem onSelect={() => run(() => setInvoiceStatus(invoice.id, "aberta"))}>
+                                Reabrir
+                              </DropdownMenuItem>
+                            ) : null}
+                            {invoice.status !== "cancelada" ? (
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={() => run(() => setInvoiceStatus(invoice.id, "cancelada"))}
+                              >
+                                Cancelar fatura
+                              </DropdownMenuItem>
+                            ) : null}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -498,6 +535,10 @@ function InvoicesTab() {
           </div>
         </>
       )}
+
+      {paying ? (
+        <ManualPaymentDialog invoice={paying} onClose={() => setPaying(null)} onSaved={reload} />
+      ) : null}
     </div>
   )
 }
@@ -544,6 +585,7 @@ export function AdminBillingView() {
         </TabsTrigger>
         <TabsTrigger value="faturas">Faturas</TabsTrigger>
         <TabsTrigger value="mensalidade">Mensalidade</TabsTrigger>
+        <TabsTrigger value="pagamento">Formas de pagamento</TabsTrigger>
       </TabsList>
       <TabsContent value="assinantes">
         <SubscriptionsTab subscriptions={data.subscriptions} config={data.config} onChanged={reload} />
@@ -558,6 +600,9 @@ export function AdminBillingView() {
           canEdit={user?.role === "admin"}
           onSaved={reload}
         />
+      </TabsContent>
+      <TabsContent value="pagamento">
+        <PaymentSettings />
       </TabsContent>
     </Tabs>
   )
